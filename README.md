@@ -2,6 +2,8 @@
 
 A powerful TUI (Terminal User Interface) for analyzing Rails application logs in real-time. LogBench provides an intuitive interface to view HTTP requests, SQL queries, and performance metrics from your Rails logs.
 
+![LogBench Preview](logbench-preview.png)
+
 ## Features
 
 - 🚀 **Real-time log analysis** with auto-scroll
