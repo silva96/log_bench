@@ -23,4 +23,4 @@ module LogBench
 end
 
 # Load Railtie if Rails is available
-require 'log_bench/railtie' if defined?(Rails)
+require "log_bench/railtie" if defined?(Rails)

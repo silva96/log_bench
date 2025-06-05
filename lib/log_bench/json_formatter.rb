@@ -15,7 +15,7 @@ module LogBench
     def call(severity, timestamp, progname, message)
       log_entry = build_log_entry(severity, timestamp, progname, message)
       log_entry.to_json + "\n"
-    rescue => e
+    rescue
       # Fallback to simple format if JSON generation fails
       "#{timestamp} [#{severity}] #{progname}: #{message}\n"
     end
@@ -39,7 +39,7 @@ module LogBench
     def message_to_hash(message)
       case message
       when String
-        { message: message }
+        {message: message}
       when Hash
         message.dup
       when Exception
@@ -49,13 +49,13 @@ module LogBench
           error_message: message.message
         }
       else
-        { message: message.to_s }
+        {message: message.to_s}
       end
     end
 
     def lograge_message?(entry)
       # Check if the message field contains lograge JSON
-      return false unless entry[:message].is_a?(String) && entry[:message].start_with?('{')
+      return false unless entry[:message].is_a?(String) && entry[:message].start_with?("{")
 
       # Try to parse and check for lograge fields
       begin

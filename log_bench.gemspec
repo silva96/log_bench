@@ -49,8 +49,8 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "zeitwerk"
-  spec.add_dependency "curses"
+  spec.add_dependency "zeitwerk", "~> 2.7"
+  spec.add_dependency "curses", "~> 1.5"
   spec.add_dependency "lograge", "~> 0.14"
 
   # Development dependencies

@@ -2,7 +2,7 @@ namespace :log_bench do
   desc "Install and configure LogBench with lograge"
   task :install do
     puts "Installing LogBench configuration..."
-    
+
     if defined?(Rails)
       # Run the Rails generator
       system("rails generate log_bench:install")
@@ -13,13 +13,13 @@ namespace :log_bench do
   end
 
   desc "Check LogBench configuration"
-  task :check => :environment do
-    puts "\n" + "="*60
+  task check: :environment do
+    puts "\n" + "=" * 60
     puts "🔍 LogBench Configuration Check"
-    puts "="*60
+    puts "=" * 60
 
     if Rails.application.config.respond_to?(:lograge) &&
-       Rails.application.config.lograge.enabled
+        Rails.application.config.lograge.enabled
       puts "✅ Lograge is enabled"
 
       if Rails.application.config.lograge.formatter.is_a?(Lograge::Formatters::Json)
@@ -51,7 +51,7 @@ namespace :log_bench do
       puts "   3. Make some requests"
       puts "   4. Run: bundle exec log_bench log/development.log"
     end
-    puts "="*60 + "\n"
+    puts "=" * 60 + "\n"
   end
 
   desc "Show LogBench usage instructions"

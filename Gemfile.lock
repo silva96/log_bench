@@ -2,9 +2,9 @@ PATH
   remote: .
   specs:
     log_bench (0.1.0)
-      curses
+      curses (~> 1.5)
       lograge (~> 0.14)
-      zeitwerk
+      zeitwerk (~> 2.7)
 
 GEM
   remote: https://rubygems.org/
