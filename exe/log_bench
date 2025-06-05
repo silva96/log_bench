@@ -1,0 +1,87 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/log_bench"
+
+def show_help
+  puts <<~HELP
+    LogBench - Rails Log Viewer
+
+    Usage:
+      bundle exec log_bench [log_file]
+      bundle exec log_bench --help
+      bundle exec log_bench --version
+
+    Examples:
+      bundle exec log_bench                           # View log/development.log
+      bundle exec log_bench log/production.log        # View specific log file
+      bundle exec log_bench /path/to/app/log/test.log  # View log from another app
+
+    Setup (for Rails apps):
+      See README.md for complete configuration instructions:
+      https://github.com/silva96/log_bench#installation
+
+    Custom Logging:
+      # Create JSON loggers for background jobs, events, etc.
+      logger = Logger.new('log/jobs.log')
+      logger.formatter = LogBench::JsonFormatter.new
+      logger.info({ message: "Job completed", job_id: 123 })
+
+      # Then view with LogBench
+      bundle exec log_bench log/jobs.log
+
+    Requirements:
+      - Lograge gem with JSON formatter
+      - Rails application logs in lograge format
+
+    For more info: https://github.com/silva96/log_bench
+  HELP
+end
+
+def show_version
+  puts "LogBench #{LogBench::VERSION}"
+end
+
+# Handle command line arguments
+case ARGV[0]
+when "--help", "-h"
+  show_help
+  exit 0
+when "--version", "-v"
+  show_version
+  exit 0
+end
+
+begin
+  log_file = ARGV[0] || "log/development.log"
+
+  # Check if log file exists
+  unless File.exist?(log_file)
+    puts "❌ Log file not found: #{log_file}"
+    puts
+    puts "Make sure:"
+    puts "  1. You're in a Rails application directory"
+    puts "  2. The log file exists and has content"
+    puts "  3. Lograge is configured (see README.md for setup)"
+    puts
+    puts "For help: bundle exec log_bench --help"
+    exit 1
+  end
+
+  LogBench::App::Main.new(log_file).run
+rescue Interrupt
+  Curses.close_screen if defined?(Curses)
+  puts "\nGoodbye! 👋"
+  exit 0
+rescue => e
+  Curses.close_screen if defined?(Curses)
+  puts "❌ Error: #{e.message}"
+  puts
+  puts "Common issues:"
+  puts "  - Log file doesn't exist or is empty"
+  puts "  - Lograge not configured (see README.md for setup)"
+  puts "  - Log format not supported (LogBench requires lograge JSON format)"
+  puts
+  puts "For help: bundle exec log_bench --help"
+  exit 1
+end
