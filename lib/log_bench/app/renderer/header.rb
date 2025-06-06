@@ -75,7 +75,7 @@ module LogBench
           header_win.attron(A_DIM) do
             header_win.addstr("a:Auto-scroll(")
             header_win.attron(color_pair(3)) { header_win.addstr(state.auto_scroll ? "ON" : "OFF") }
-            header_win.addstr(") | f:Filter | c:Clear | s:Sort(")
+            header_win.addstr(") | f:Filter | c:Clear filter | s:Sort(")
             header_win.attron(color_pair(3)) { header_win.addstr(state.sort.display_name) }
             header_win.addstr(") | q:Quit")
           end
