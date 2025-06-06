@@ -1,15 +1,16 @@
 namespace :log_bench do
-  desc "Install and configure LogBench with lograge"
+  desc "Show LogBench configuration instructions"
   task :install do
-    puts "Installing LogBench configuration..."
-
-    if defined?(Rails)
-      # Run the Rails generator
-      system("rails generate log_bench:install")
-    else
-      puts "This task should be run from a Rails application directory."
-      puts "Alternatively, run: rails generate log_bench:install"
-    end
+    puts "LogBench Configuration Instructions:"
+    puts
+    puts "Please see the README.md for complete setup instructions:"
+    puts "https://github.com/silva96/log_bench#configuration"
+    puts
+    puts "Quick setup:"
+    puts "1. Add 'require \"lograge\"' to config/environments/development.rb"
+    puts "2. Configure lograge and JsonFormatter (see README)"
+    puts "3. Set up Current model and ApplicationController"
+    puts "4. Restart Rails server"
   end
 
   desc "Check LogBench configuration"
@@ -27,7 +28,7 @@ namespace :log_bench do
       else
         puts "⚠️  JSON formatter is not configured"
         puts "   LogBench requires JSON format"
-        puts "   Run: rails generate log_bench:install"
+        puts "   See README.md for configuration instructions"
       end
 
       # Check if log file exists and has content
@@ -46,10 +47,11 @@ namespace :log_bench do
       puts "❌ Lograge is not enabled"
       puts
       puts "To fix this:"
-      puts "   1. Run: bundle exec rails generate log_bench:install"
-      puts "   2. Restart your Rails server"
-      puts "   3. Make some requests"
-      puts "   4. Run: bundle exec log_bench log/development.log"
+      puts "   1. See README.md for configuration instructions"
+      puts "   2. Configure lograge in config/environments/development.rb"
+      puts "   3. Restart your Rails server"
+      puts "   4. Make some requests"
+      puts "   5. Run: bundle exec log_bench log/development.log"
     end
     puts "=" * 60 + "\n"
   end
@@ -66,8 +68,8 @@ namespace :log_bench do
         2. Run bundle install:
            bundle install
            
-        3. Configure lograge:
-           rails generate log_bench:install
+        3. Configure lograge (see README.md):
+           https://github.com/silva96/log_bench#configuration
            
         4. Restart your Rails server
       

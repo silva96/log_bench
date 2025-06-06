@@ -4,10 +4,7 @@ module LogBench
   class Railtie < Rails::Railtie
     railtie_name :log_bench
 
-    # Add LogBench generators to Rails
-    generators do
-      require "generators/log_bench/install_generator"
-    end
+    # LogBench uses manual configuration (see README.md)
 
     # Provide helpful rake tasks
     rake_tasks do
@@ -30,10 +27,11 @@ module LogBench
           puts "🚀 LogBench is ready to configure!"
           puts "=" * 70
           puts "To start using LogBench:"
-          puts "  1. Configure lograge: bundle exec rails generate log_bench:install"
-          puts "  2. Restart your Rails server"
-          puts "  3. Make some requests to generate logs"
-          puts "  4. View logs: bundle exec log_bench log/development.log"
+          puts "  1. See README.md for configuration instructions"
+          puts "  2. Configure lograge in config/environments/development.rb"
+          puts "  3. Restart your Rails server"
+          puts "  4. Make some requests to generate logs"
+          puts "  5. View logs: bundle exec log_bench log/development.log"
           puts
         end
         puts "For help: bundle exec log_bench --help"
