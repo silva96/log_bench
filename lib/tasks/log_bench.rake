@@ -42,7 +42,7 @@ namespace :log_bench do
 
       puts
       puts "🎉 LogBench is ready to use!"
-      puts "   Command: bundle exec log_bench #{log_file}"
+      puts "   Command: log_bench #{log_file}"
     else
       puts "❌ Lograge is not enabled"
       puts
@@ -51,7 +51,7 @@ namespace :log_bench do
       puts "   2. Configure lograge in config/environments/development.rb"
       puts "   3. Restart your Rails server"
       puts "   4. Make some requests"
-      puts "   5. Run: bundle exec log_bench log/development.log"
+      puts "   5. Run: log_bench log/development.log"
     end
     puts "=" * 60 + "\n"
   end

@@ -100,20 +100,19 @@ module LogBench
       end
 
       def filtered_requests
-        # First apply filter - match exactly like original logtail
         filtered = if main_filter.present?
           requests.select do |req|
             main_filter.matches?(req.path) ||
               main_filter.matches?(req.method) ||
               main_filter.matches?(req.controller) ||
               main_filter.matches?(req.action) ||
+              main_filter.matches?(req.status) ||
               main_filter.matches?(req.request_id)
           end
         else
           requests
         end
 
-        # Then apply sorting using Sort domain object
         sort.sort_requests(filtered)
       end
 

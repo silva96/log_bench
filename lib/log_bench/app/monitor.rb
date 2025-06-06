@@ -36,8 +36,6 @@ module LogBench
               add_new_requests(new_collection.requests)
             end
           rescue
-            # Log error but continue monitoring
-            # In a real app, you might want to handle this differently
             sleep 1
           end
         end

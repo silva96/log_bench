@@ -3,14 +3,7 @@
 require "json"
 
 module LogBench
-  # A simple JSON formatter for Rails loggers that creates LogBench-compatible entries
-  # for non-request logging (background jobs, custom events, etc.)
-  #
-  # Usage:
-  #   logger = Logger.new(Rails.root.join('log', 'custom.log'))
-  #   logger.formatter = LogBench::JsonFormatter.new
-  #   logger.info("Background job completed", job_id: 123)
-  #
+  # A simple JSON formatter for Rails loggers that creates LogBench-compatible
   class JsonFormatter < ::Logger::Formatter
     def call(severity, timestamp, progname, message)
       log_entry = build_log_entry(severity, timestamp, progname, message)
@@ -54,10 +47,8 @@ module LogBench
     end
 
     def lograge_message?(entry)
-      # Check if the message field contains lograge JSON
       return false unless entry[:message].is_a?(String) && entry[:message].start_with?("{")
 
-      # Try to parse and check for lograge fields
       begin
         parsed = JSON.parse(entry[:message])
         parsed.is_a?(Hash) && parsed["method"] && parsed["path"] && parsed["status"]
@@ -67,14 +58,12 @@ module LogBench
     end
 
     def parse_lograge_message(message_string)
-      # Parse the lograge JSON string
       JSON.parse(message_string)
     rescue JSON::ParserError
       nil
     end
 
     def current_request_id
-      # Try multiple ways to get the current request ID
       request_id = nil
 
       if defined?(Current) && Current.respond_to?(:request_id)
@@ -85,7 +74,6 @@ module LogBench
         request_id = Thread.current[:request_id]
       end
 
-      # Return nil if no request ID found - let caller decide whether to generate UUID
       request_id
     end
   end

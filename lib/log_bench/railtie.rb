@@ -21,7 +21,7 @@ module LogBench
             Rails.application.config.lograge.enabled
           puts "✅ LogBench is ready to use!"
           puts "=" * 70
-          puts "View your logs: bundle exec log_bench log/development.log"
+          puts "View your logs: log_bench log/development.log"
         else
 
           puts "🚀 LogBench is ready to configure!"
@@ -31,10 +31,10 @@ module LogBench
           puts "  2. Configure lograge in config/environments/development.rb"
           puts "  3. Restart your Rails server"
           puts "  4. Make some requests to generate logs"
-          puts "  5. View logs: bundle exec log_bench log/development.log"
+          puts "  5. View logs: log_bench log/development.log"
           puts
         end
-        puts "For help: bundle exec log_bench --help"
+        puts "For help: log_bench --help"
         puts "=" * 70 + "\n"
         puts "=" * 70 + "\n"
       end

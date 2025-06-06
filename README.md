@@ -12,7 +12,6 @@ A powerful TUI (Terminal User Interface) for analyzing Rails application logs in
 - 📈 **Performance insights** - duration, allocations, query analysis
 - 🎨 **Beautiful TUI** with syntax highlighting and ANSI color support
 - ⚡ **Fast parsing** of JSON-formatted logs
-- 🔧 **Custom logging** support for background jobs and events
 
 ## Installation
 
@@ -103,25 +102,33 @@ log_bench log/development.log
 - **Filtering**: `f` to open filter dialog
 - **Sorting**: `s` to cycle through sort options (timestamp, duration, status)
 - **Auto-scroll**: `a` to toggle auto-scroll mode
-- **Clear**: `c` to clear current logs
+- **Clear**: `c` to clear an active filter (press `escape` or `enter` before pressing `c` to clear)
 - **Quit**: `q` to exit
 
 ### Filtering
 
-Press `f` to open the filter dialog. You can filter by:
+Press `f` to open the filter dialog. 
+
+In the left pane you can filter by:
 
 - **Method**: GET, POST, PUT, DELETE, etc.
 - **Path**: URL path patterns
 - **Status**: HTTP status codes (200, 404, 500, etc.)
 - **Controller**: Controller name
 - **Action**: Action name
-- **Duration**: Minimum request duration in ms
+- **Request ID**: Unique request identifier
 
 Examples:
 - Filter by method: `GET`
 - Filter by path: `/api/users`
 - Filter by status: `500`
-- Filter by slow requests: duration `>100`
+- Filter by controller: `UsersController`
+- Filter by action: `create`
+- Filter by request ID: `abcdef-b1n2mk ...`
+
+In the right pane you can filter related log lines by text content to find specific SQL queries or anything else
+you want to find in the logs.
+
 
 ## Log Format
 

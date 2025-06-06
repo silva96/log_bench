@@ -21,9 +21,9 @@ Gem::Specification.new do |spec|
     1. Configure Rails (see README.md for setup instructions)
     2. Restart your Rails server
     3. Make some requests to generate logs
-    4. View logs: bundle exec log_bench log/development.log
+    4. View logs: log_bench log/development.log
 
-    For help: bundle exec log_bench --help
+    For help: log_bench --help
     Documentation: https://github.com/silva96/log_bench
 
   MESSAGE

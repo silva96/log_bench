@@ -15,7 +15,6 @@ module LogBench
         end
 
         def parse_and_render(text, win)
-          # Parse ANSI escape codes and render with proper colors
           parts = text.split(/(\e\[[0-9;]*m)/)
           current_color = nil
 
@@ -34,7 +33,6 @@ module LogBench
         end
 
         def wrap_ansi_text(text, max_width)
-          # For ANSI text, we need to preserve color state across chunks
           clean_text = text.gsub(/\e\[[0-9;]*m/, "")
 
           if clean_text.length <= max_width
