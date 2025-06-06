@@ -14,8 +14,6 @@ module LogBench
       SAVEPOINT = "SAVEPOINT"
       SQL_OPERATIONS = [SELECT, INSERT, UPDATE, DELETE, TRANSACTION, BEGIN_TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT].freeze
 
-      attr_reader :content, :timing
-
       def initialize(raw_line)
         super
         self.type = :sql
@@ -125,8 +123,7 @@ module LogBench
 
       private
 
-      attr_reader :operation
-      attr_writer :content, :timing, :operation
+      attr_accessor :operation
     end
   end
 end

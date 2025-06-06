@@ -3,8 +3,6 @@
 module LogBench
   module Log
     class CallLineEntry < Entry
-      attr_reader :content
-
       def initialize(raw_line)
         super
         self.type = :sql_call_line
@@ -30,7 +28,6 @@ module LogBench
 
       private
 
-      attr_writer :content
       attr_accessor :file_path, :line_number, :method_name
 
       def extract_from_json(data)

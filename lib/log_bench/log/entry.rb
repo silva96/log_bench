@@ -3,7 +3,7 @@
 module LogBench
   module Log
     class Entry
-      attr_reader :type, :raw_line, :request_id, :timestamp
+      attr_reader :type, :raw_line, :request_id, :timestamp, :content, :timing
 
       def initialize(raw_line)
         self.raw_line = raw_line.strip
@@ -42,7 +42,7 @@ module LogBench
 
       private
 
-      attr_writer :type, :raw_line, :timestamp, :request_id
+      attr_writer :type, :raw_line, :timestamp, :request_id, :content, :timing
 
       def parse!
         parse_json
@@ -64,6 +64,7 @@ module LogBench
 
         self.timestamp = parse_timestamp(data["timestamp"])
         self.request_id = data["request_id"]
+        self.content = data["message"]
         self.type = determine_json_type(data)
         true
       end

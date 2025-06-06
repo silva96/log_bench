@@ -5,8 +5,6 @@ module LogBench
     class CacheEntry < Entry
       SQL_OPERATIONS = %w[SELECT INSERT UPDATE DELETE].freeze
 
-      attr_reader :content, :timing
-
       def initialize(raw_line)
         super
         self.type = :cache
@@ -47,8 +45,7 @@ module LogBench
 
       private
 
-      attr_reader :operation
-      attr_writer :content, :timing, :operation
+      attr_writer :operation
 
       def extract_from_json(data)
         super

@@ -148,22 +148,10 @@ module LogBench
 
           # Add all related logs from the request
           request.related_logs.each do |log|
-            content = case log
-            when LogBench::Log::QueryEntry, LogBench::Log::CacheEntry, LogBench::Log::CallLineEntry
-              log.content
-            else
-              log.raw_line  # Fallback to raw line for other entry types
-            end
-
-            timing = case log
-            when LogBench::Log::QueryEntry, LogBench::Log::CacheEntry
-              log.timing
-            end
-
             related << {
               type: log.type,
-              content: content,
-              timing: timing,
+              content: log.content,
+              timing: log.timing,
               timestamp: log.timestamp
             }
           end
