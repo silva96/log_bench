@@ -107,7 +107,7 @@ log_bench log/development.log
 
 ### Filtering
 
-Press `f` to open the filter dialog. 
+Press `f` to open the filter dialog.
 
 In the left pane you can filter by:
 
@@ -233,5 +233,3 @@ This gem is available as open source under the terms of the [MIT License](LICENS
 ## Support
 
 - 🐛 **Bug reports**: [GitHub Issues](https://github.com/silva96/log_bench/issues)
-- 💡 **Feature requests**: [GitHub Discussions](https://github.com/silva96/log_bench/discussions)
-- 📖 **Documentation**: [GitHub Wiki](https://github.com/silva96/log_bench/wiki)
