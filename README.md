@@ -100,9 +100,9 @@ log_bench log/development.log
 - **Navigation**: `↑↓` or `jk` to navigate requests
 - **Pane switching**: `←→` or `hl` to switch between request list and details
 - **Filtering**: `f` to open filter dialog
+- **Clear filter**: `c` to clear an active filter (press `escape` or `enter` before pressing `c` to clear)
 - **Sorting**: `s` to cycle through sort options (timestamp, duration, status)
 - **Auto-scroll**: `a` to toggle auto-scroll mode
-- **Clear**: `c` to clear an active filter (press `escape` or `enter` before pressing `c` to clear)
 - **Quit**: `q` to exit
 
 ### Filtering

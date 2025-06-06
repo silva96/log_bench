@@ -42,13 +42,7 @@ module LogBench
 
       def handle_filter_input(ch)
         case ch
-        when 10, 13  # Enter - exit filter mode but keep filter text
-          if state.filter_mode
-            state.filter_mode = false
-          elsif state.detail_filter_mode
-            state.detail_filter_mode = false
-          end
-        when 27  # ESC - exit filter mode and clear filter
+        when 10, 13, 27
           state.exit_filter_mode
         when Curses::KEY_UP, "k", "K"
           state.exit_filter_mode
