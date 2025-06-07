@@ -55,7 +55,7 @@ module LogBench
       end
 
       def setup_components
-        self.input_handler = InputHandler.new(state)
+        self.input_handler = InputHandler.new(state, screen)
         self.renderer = Renderer::Main.new(screen, state)
       end
 

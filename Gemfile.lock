@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    log_bench (0.1.3)
+    log_bench (0.1.4)
       curses (~> 1.5)
       lograge (~> 0.14)
       zeitwerk (~> 2.7)
