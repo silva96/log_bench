@@ -29,6 +29,7 @@ module LogBench
         setup_colors
         clear_screen_immediately
         setup_windows
+        turn_text_selection_mode(false)
       end
 
       def cleanup
@@ -52,6 +53,10 @@ module LogBench
 
       def color_pair(n)
         Curses.color_pair(n)
+      end
+
+      def turn_text_selection_mode(enabled)
+        enabled ? mousemask(0) : mousemask(BUTTON1_CLICKED)
       end
 
       private

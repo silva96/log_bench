@@ -4,7 +4,7 @@ module LogBench
   module App
     class State
       attr_reader :main_filter, :sort, :detail_filter
-      attr_accessor :requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset
+      attr_accessor :requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :text_selection_mode
 
       def initialize
         self.requests = []
@@ -14,6 +14,7 @@ module LogBench
         self.running = true
         self.focused_pane = :left
         self.detail_scroll_offset = 0
+        self.text_selection_mode = false
         self.main_filter = Filter.new
         self.detail_filter = Filter.new
         self.sort = Sort.new
@@ -29,6 +30,14 @@ module LogBench
 
       def toggle_auto_scroll
         self.auto_scroll = !auto_scroll
+      end
+
+      def toggle_text_selection_mode
+        self.text_selection_mode = !text_selection_mode
+      end
+
+      def text_selection_mode?
+        text_selection_mode
       end
 
       def clear_filter

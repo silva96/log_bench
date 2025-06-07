@@ -17,15 +17,19 @@ module LogBench
       # UI constants
       DEFAULT_VISIBLE_HEIGHT = 20
 
-      def initialize(state)
+      def initialize(state, screen)
         self.state = state
+        self.screen = screen
+        self.mouse_handler = MouseHandler.new(state, screen)
       end
 
       def handle_input
         ch = getch
         return if ch == -1 || ch.nil?
 
-        if filter_mode_active?
+        if ch == KEY_MOUSE
+          mouse_handler.handle_mouse_input
+        elsif filter_mode_active?
           handle_filter_input(ch)
         else
           handle_navigation_input(ch)
@@ -34,7 +38,7 @@ module LogBench
 
       private
 
-      attr_accessor :state
+      attr_accessor :state, :screen, :mouse_handler
 
       def filter_mode_active?
         state.filter_mode || state.detail_filter_mode
@@ -44,10 +48,10 @@ module LogBench
         case ch
         when 10, 13, 27
           state.exit_filter_mode
-        when Curses::KEY_UP, "k", "K"
+        when KEY_UP, "k", "K"
           state.exit_filter_mode
           state.navigate_up
-        when Curses::KEY_DOWN, "j", "J"
+        when KEY_DOWN, "j", "J"
           state.exit_filter_mode
           state.navigate_down
         when 127, 8  # Backspace
@@ -89,15 +93,15 @@ module LogBench
 
       def handle_navigation_input(ch)
         case ch
-        when Curses::KEY_LEFT, "h", "H"
+        when KEY_LEFT, "h", "H"
           state.switch_to_left_pane
-        when Curses::KEY_RIGHT, "l", "L"
+        when KEY_RIGHT, "l", "L"
           state.switch_to_right_pane
         when TAB
           toggle_pane_focus
-        when Curses::KEY_UP, "k", "K"
+        when KEY_UP, "k", "K"
           handle_up_navigation
-        when Curses::KEY_DOWN, "j", "J"
+        when KEY_DOWN, "j", "J"
           handle_down_navigation
         when CTRL_F
           handle_page_down
@@ -125,6 +129,9 @@ module LogBench
           state.cycle_sort_mode
         when "q", "Q", CTRL_C
           state.stop!
+        when "t", "T"
+          state.toggle_text_selection_mode
+          screen.turn_text_selection_mode(state.text_selection_mode?)
         when ESC
           handle_escape
         end

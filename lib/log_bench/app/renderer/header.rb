@@ -77,12 +77,14 @@ module LogBench
             header_win.attron(color_pair(3)) { header_win.addstr(state.auto_scroll ? "ON" : "OFF") }
             header_win.addstr(") | f:Filter | c:Clear filter | s:Sort(")
             header_win.attron(color_pair(3)) { header_win.addstr(state.sort.display_name) }
+            header_win.addstr(") | t:Text selection(")
+            header_win.attron(color_pair(3)) { header_win.addstr(state.text_selection_mode? ? "ON" : "OFF") }
             header_win.addstr(") | q:Quit")
           end
 
           header_win.setpos(3, 2)
           header_win.attron(A_DIM) do
-            header_win.addstr("←→/hl:Switch Pane | ↑↓/jk:Navigate | g/G:Top/End")
+            header_win.addstr("←→/hl:Switch Pane | ↑↓/jk/Click:Navigate | g/G:Top/End")
           end
         end
 
