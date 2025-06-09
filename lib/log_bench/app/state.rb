@@ -4,7 +4,7 @@ module LogBench
   module App
     class State
       attr_reader :main_filter, :sort, :detail_filter
-      attr_accessor :requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :text_selection_mode
+      attr_accessor :requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :text_selection_mode, :update_available, :update_version
 
       def initialize
         self.requests = []
@@ -18,6 +18,8 @@ module LogBench
         self.main_filter = Filter.new
         self.detail_filter = Filter.new
         self.sort = Sort.new
+        self.update_available = false
+        self.update_version = nil
       end
 
       def running?
@@ -38,6 +40,20 @@ module LogBench
 
       def text_selection_mode?
         text_selection_mode
+      end
+
+      def set_update_available(version)
+        self.update_available = true
+        self.update_version = version
+      end
+
+      def dismiss_update_notification
+        self.update_available = false
+        self.update_version = nil
+      end
+
+      def update_available?
+        update_available
       end
 
       def clear_filter

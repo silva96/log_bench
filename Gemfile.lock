@@ -4,6 +4,7 @@ PATH
     log_bench (0.1.4)
       curses (~> 1.5)
       lograge (~> 0.14)
+      net-http (~> 0.6)
       zeitwerk (~> 2.7)
 
 GEM
@@ -70,6 +71,8 @@ GEM
       crass (~> 1.0.2)
       nokogiri (>= 1.12.0)
     minitest (5.25.5)
+    net-http (0.6.0)
+      uri
     nokogiri (1.18.6-arm64-darwin)
       racc (~> 1.4)
     parallel (1.27.0)

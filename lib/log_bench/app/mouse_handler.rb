@@ -40,11 +40,9 @@ module LogBench
           request_index = click_to_request_index(y)
           return unless request_index
 
-          # Update selection
           max_index = state.filtered_requests.size - 1
           state.selected = [request_index, max_index].min
           state.auto_scroll = false
-          state.adjust_scroll_for_selection(visible_height)
         elsif click_in_right_pane?(x, y)
           # Switch to right pane
           state.switch_to_right_pane unless state.right_pane_focused?

@@ -52,6 +52,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "zeitwerk", "~> 2.7"
   spec.add_dependency "curses", "~> 1.5"
   spec.add_dependency "lograge", "~> 0.14"
+  spec.add_dependency "net-http", "~> 0.6"
 
   # Development dependencies
   spec.add_development_dependency "rake", "~> 13.3"
