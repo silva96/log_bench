@@ -11,7 +11,7 @@ module LogBench
       DEFAULT_LOG_PATHS = %w[log/development.log].freeze
 
       # Timing
-      MAIN_LOOP_SLEEP_INTERVAL = 0.05
+      MAIN_LOOP_SLEEP_INTERVAL = 1.0 / 1000 # 1ms
 
       # Error messages
       LOG_FILE_NOT_FOUND = "Error: No log file found at %s!"

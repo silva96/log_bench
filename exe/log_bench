@@ -66,6 +66,7 @@ rescue Interrupt
   exit 0
 rescue => e
   Curses.close_screen if defined?(Curses)
+  puts e.backtrace.join("\n")
   puts "❌ Error: #{e.message}"
   puts
   puts "Common issues:"
