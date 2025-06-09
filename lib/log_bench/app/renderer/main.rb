@@ -12,18 +12,27 @@ module LogBench
           self.header = Header.new(screen, state)
           self.request_list = RequestList.new(screen, state, scrollbar)
           self.details = Details.new(screen, state, scrollbar, ansi_renderer)
+          self.update_modal = UpdateModal.new(screen, state)
         end
 
         def draw
-          header.draw
-          request_list.draw
-          details.draw
-          screen.refresh_all
+          if update_modal.should_show?
+            update_modal.draw
+          else
+            header.draw
+            request_list.draw
+            details.draw
+            screen.refresh_all
+          end
+        end
+
+        def handle_modal_input(ch)
+          update_modal.handle_input(ch)
         end
 
         private
 
-        attr_accessor :screen, :state, :header, :scrollbar, :request_list, :ansi_renderer, :details
+        attr_accessor :screen, :state, :header, :scrollbar, :request_list, :ansi_renderer, :details, :update_modal
       end
     end
   end

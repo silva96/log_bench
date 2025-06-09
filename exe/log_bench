@@ -72,6 +72,7 @@ rescue => e
   puts "  - Log file doesn't exist or is empty"
   puts "  - Lograge not configured (see README.md for setup)"
   puts "  - Log format not supported (LogBench requires lograge JSON format)"
+  puts " Error backtrace: \n #{e.backtrace.join("\n")}"
   puts
   puts "For help: log_bench --help"
   exit 1

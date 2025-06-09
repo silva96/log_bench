@@ -17,15 +17,21 @@ module LogBench
       # UI constants
       DEFAULT_VISIBLE_HEIGHT = 20
 
-      def initialize(state, screen)
+      def initialize(state, screen, renderer = nil)
         self.state = state
         self.screen = screen
+        self.renderer = renderer
         self.mouse_handler = MouseHandler.new(state, screen)
       end
 
       def handle_input
         ch = getch
         return if ch == -1 || ch.nil?
+
+        # Check if update modal should handle input first
+        if renderer&.handle_modal_input(ch)
+          return
+        end
 
         if ch == KEY_MOUSE
           mouse_handler.handle_mouse_input
@@ -38,7 +44,7 @@ module LogBench
 
       private
 
-      attr_accessor :state, :screen, :mouse_handler
+      attr_accessor :state, :screen, :renderer, :mouse_handler
 
       def filter_mode_active?
         state.filter_mode || state.detail_filter_mode

@@ -11,7 +11,7 @@ module LogBench
       DEFAULT_LOG_PATHS = %w[log/development.log].freeze
 
       # Timing
-      MAIN_LOOP_SLEEP_INTERVAL = 0.05
+      MAIN_LOOP_SLEEP_INTERVAL = 1.0 / 1000 # 1ms
 
       # Error messages
       LOG_FILE_NOT_FOUND = "Error: No log file found at %s!"
@@ -27,6 +27,7 @@ module LogBench
         setup_screen
         setup_components
         load_initial_data
+        check_for_updates
         initial_draw
         start_monitoring
         main_loop
@@ -55,13 +56,18 @@ module LogBench
       end
 
       def setup_components
-        self.input_handler = InputHandler.new(state, screen)
         self.renderer = Renderer::Main.new(screen, state)
+        self.input_handler = InputHandler.new(state, screen, renderer)
       end
 
       def load_initial_data
         log_file = Log::File.new(log_file_path)
         state.requests = log_file.requests
+      end
+
+      def check_for_updates
+        latest_version = VersionChecker.check_for_update
+        state.set_update_available(latest_version) if latest_version
       end
 
       def initial_draw
