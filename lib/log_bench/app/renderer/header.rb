@@ -9,7 +9,7 @@ module LogBench
         # Application info
         APP_NAME = "LogBench"
         APP_SUBTITLE = "Rails Log Viewer"
-        DEFAULT_LOG_FILENAME = "development.log"
+        VERSION = "(v#{LogBench::VERSION})"
 
         # Layout constants
         TITLE_X_OFFSET = 2
@@ -41,7 +41,7 @@ module LogBench
         def draw_title
           header_win.setpos(1, TITLE_X_OFFSET)
           header_win.attron(color_pair(HEADER_CYAN) | A_BOLD) { header_win.addstr(APP_NAME) }
-          header_win.addstr(" - #{APP_SUBTITLE}")
+          header_win.addstr(" - #{APP_SUBTITLE} #{VERSION}")
         end
 
         def draw_file_name
