@@ -7,7 +7,7 @@ module LogBench
         include Curses
 
         # Application info
-        APP_NAME = "LogBench"
+        APP_NAME = "LogBench #{LogBench::VERSION}"
         APP_SUBTITLE = "Rails Log Viewer"
         DEFAULT_LOG_FILENAME = "development.log"
 
