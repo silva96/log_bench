@@ -38,6 +38,8 @@ module LogBench
 
       private
 
+      attr_accessor :log_file_path, :state, :screen, :monitor, :input_handler, :renderer
+
       def find_log_file(path)
         candidates = [path] + DEFAULT_LOG_PATHS
         candidates.find { |candidate| File.exist?(candidate) } || path
@@ -49,6 +51,10 @@ module LogBench
           puts RAILS_PROJECT_HINT
           exit 1
         end
+      end
+
+      def log_file_name
+        File.basename(log_file_path)
       end
 
       def validate_configuration!
@@ -64,7 +70,7 @@ module LogBench
       end
 
       def setup_components
-        self.renderer = Renderer::Main.new(screen, state)
+        self.renderer = Renderer::Main.new(screen, state, log_file_name)
         self.input_handler = InputHandler.new(state, screen, renderer)
       end
 
@@ -101,10 +107,6 @@ module LogBench
         monitor&.stop
         screen&.cleanup
       end
-
-      private
-
-      attr_accessor :log_file_path, :state, :screen, :monitor, :input_handler, :renderer
     end
   end
 end

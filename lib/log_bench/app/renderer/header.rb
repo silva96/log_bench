@@ -7,21 +7,21 @@ module LogBench
         include Curses
 
         # Application info
-        APP_NAME = "LogBench #{LogBench::VERSION}"
+        APP_NAME = "LogBench"
         APP_SUBTITLE = "Rails Log Viewer"
         DEFAULT_LOG_FILENAME = "development.log"
 
         # Layout constants
         TITLE_X_OFFSET = 2
-        FILENAME_X_OFFSET = 15
 
         # Color constants
         HEADER_CYAN = 1
         SUCCESS_GREEN = 3
 
-        def initialize(screen, state)
+        def initialize(screen, state, log_file_name)
           self.screen = screen
           self.state = state
+          self.log_file_name = log_file_name
         end
 
         def draw
@@ -36,7 +36,7 @@ module LogBench
 
         private
 
-        attr_accessor :screen, :state
+        attr_accessor :screen, :state, :log_file_name
 
         def draw_title
           header_win.setpos(1, TITLE_X_OFFSET)
@@ -45,8 +45,8 @@ module LogBench
         end
 
         def draw_file_name
-          header_win.setpos(1, screen.width / 2 - FILENAME_X_OFFSET)
-          header_win.attron(color_pair(SUCCESS_GREEN)) { header_win.addstr(DEFAULT_LOG_FILENAME) }
+          header_win.setpos(1, (screen.width / 2) - (log_file_name.length / 2))
+          header_win.attron(color_pair(SUCCESS_GREEN)) { header_win.addstr(log_file_name) }
         end
 
         def draw_stats

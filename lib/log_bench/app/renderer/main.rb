@@ -4,12 +4,12 @@ module LogBench
   module App
     module Renderer
       class Main
-        def initialize(screen, state)
+        def initialize(screen, state, log_file_name)
           self.screen = screen
           self.state = state
           self.scrollbar = Scrollbar.new(screen)
           self.ansi_renderer = Ansi.new(screen)
-          self.header = Header.new(screen, state)
+          self.header = Header.new(screen, state, log_file_name)
           self.request_list = RequestList.new(screen, state, scrollbar)
           self.details = Details.new(screen, state, scrollbar, ansi_renderer)
           self.update_modal = UpdateModal.new(screen, state)
