@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    log_bench (0.1.5)
+    log_bench (0.1.6)
       curses (~> 1.5)
       lograge (~> 0.14)
       net-http (~> 0.6)
