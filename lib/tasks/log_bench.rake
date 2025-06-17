@@ -13,49 +13,6 @@ namespace :log_bench do
     puts "4. Restart Rails server"
   end
 
-  desc "Check LogBench configuration"
-  task check: :environment do
-    puts "\n" + "=" * 60
-    puts "🔍 LogBench Configuration Check"
-    puts "=" * 60
-
-    if Rails.application.config.respond_to?(:lograge) &&
-        Rails.application.config.lograge.enabled
-      puts "✅ Lograge is enabled"
-
-      if Rails.application.config.lograge.formatter.is_a?(Lograge::Formatters::Json)
-        puts "✅ JSON formatter is configured"
-      else
-        puts "⚠️  JSON formatter is not configured"
-        puts "   LogBench requires JSON format"
-        puts "   See README.md for configuration instructions"
-      end
-
-      # Check if log file exists and has content
-      log_file = "log/#{Rails.env}.log"
-      if File.exist?(log_file) && File.size(log_file) > 0
-        puts "✅ Log file exists: #{log_file}"
-      else
-        puts "⚠️  Log file is empty or doesn't exist: #{log_file}"
-        puts "   Make some requests to generate logs"
-      end
-
-      puts
-      puts "🎉 LogBench is ready to use!"
-      puts "   Command: log_bench #{log_file}"
-    else
-      puts "❌ Lograge is not enabled"
-      puts
-      puts "To fix this:"
-      puts "   1. See README.md for configuration instructions"
-      puts "   2. Configure lograge in config/environments/development.rb"
-      puts "   3. Restart your Rails server"
-      puts "   4. Make some requests"
-      puts "   5. Run: log_bench log/development.log"
-    end
-    puts "=" * 60 + "\n"
-  end
-
   desc "Show LogBench usage instructions"
   task :help do
     puts <<~HELP

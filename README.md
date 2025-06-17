@@ -46,6 +46,11 @@ Rails.application.configure do
   # LogBench: Configure structured logging
   config.lograge.enabled = true
   config.lograge.formatter = Lograge::Formatters::Json.new
+  config.log_bench.show_init_message = :full # or :min or :none
+  config.lograge.custom_options = lambda do |event|
+    params = event.payload[:params]&.except("controller", "action")
+    { params: params } if params.present?
+  end
   config.logger ||= ActiveSupport::Logger.new(config.default_log_file)
   config.logger.formatter = LogBench::JsonFormatter.new
 end
