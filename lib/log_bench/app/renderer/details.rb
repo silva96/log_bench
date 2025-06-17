@@ -7,6 +7,7 @@ module LogBench
     module Renderer
       class Details
         include Curses
+        EMPTY_LINE = {text: "", color: nil}
 
         def initialize(screen, state, scrollbar, ansi_renderer)
           self.screen = screen
@@ -110,7 +111,7 @@ module LogBench
           else color_pair(2) | A_BOLD
           end
 
-          lines << {text: "", color: nil}  # Empty line
+          lines << EMPTY_LINE
           lines << {
             text: "Method: #{log[:method]}",
             color: nil,
@@ -125,6 +126,7 @@ module LogBench
           add_status_duration_lines(lines, log)
           add_controller_lines(lines, log)
           add_request_id_lines(lines, log)
+          add_params_lines(lines, log, max_width)
           add_related_logs_section(lines, log)
 
           lines
@@ -138,6 +140,7 @@ module LogBench
             duration: request.duration,
             controller: request.controller,
             action: request.action,
+            params: request.params,
             request_id: request.request_id,
             related_logs: build_related_logs(request)
           }
@@ -240,6 +243,80 @@ module LogBench
           end
         end
 
+        def add_params_lines(lines, log, max_width)
+          return unless log[:params]
+
+          lines << EMPTY_LINE
+          lines << {
+            text: "Params:",
+            color: nil,
+            segments: [
+              {text: "Params:", color: color_pair(1) | A_BOLD}
+            ]
+          }
+
+          params_text = format_params(log[:params])
+          indent = "  "
+
+          # Split the params text into lines that fit within the available width
+          line_width = max_width - indent.length
+          remaining_text = params_text
+
+          while remaining_text && remaining_text.length > 0
+            line_chunk = remaining_text[0, line_width]
+            lines << {text: indent + line_chunk, color: nil}
+            remaining_text = remaining_text[line_width..] || ""
+          end
+        end
+
+        def format_params(params)
+          case params
+          when Hash
+            # Format as readable key-value pairs
+            if params.empty?
+              "{}"
+            else
+              formatted_pairs = params.map do |key, value|
+                formatted_value = case value
+                when Hash
+                  format_nested_hash(value)
+                when Array
+                  "[#{value.join(", ")}]"
+                else
+                  value.to_s
+                end
+                "#{key}: #{formatted_value}"
+              end
+              "{ #{formatted_pairs.join(", ")} }"
+            end
+          when String
+            params
+          else
+            params.to_s
+          end
+        end
+
+        def format_nested_hash(hash, depth = 1)
+          return "{}" if hash.empty?
+
+          if depth > 2  # Limit nesting depth to avoid overly complex display
+            "{...}"
+          else
+            formatted_pairs = hash.map do |key, value|
+              formatted_value = case value
+              when Hash
+                format_nested_hash(value, depth + 1)
+              when Array
+                "[#{value.join(", ")}]"
+              else
+                value.to_s
+              end
+              "#{key}: #{formatted_value}"
+            end
+            "{ #{formatted_pairs.join(", ")} }"
+          end
+        end
+
         def add_request_id_lines(lines, log)
           if log[:request_id]
             lines << {
@@ -276,7 +353,7 @@ module LogBench
             query_stats = calculate_query_stats(related_logs)
 
             # Add query summary
-            lines << {text: "", color: nil}  # Empty line
+            lines << EMPTY_LINE
 
             # Show filter status in summary if filtering is active
             summary_title = "Query Summary:"
@@ -310,7 +387,7 @@ module LogBench
               end
             end
 
-            lines << {text: "", color: nil}  # Empty line
+            lines << EMPTY_LINE
 
             # Show filtered logs section
             if state.detail_filter.present?
@@ -459,7 +536,7 @@ module LogBench
 
           # Add extra empty lines after all chunks
           extra_empty_lines.times do
-            lines << {text: "", color: nil}
+            lines << EMPTY_LINE
           end
 
           text_chunks.length

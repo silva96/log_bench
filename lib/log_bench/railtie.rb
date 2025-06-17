@@ -26,8 +26,10 @@ module LogBench
     initializer "log_bench.show_instructions", after: :load_config_initializers do
       return unless Rails.env.development?
 
-      # Check if lograge is properly configured
-      if Rails.application.config.respond_to?(:lograge) && Rails.application.config.lograge.enabled
+      # Use configuration validator to check lograge setup
+      begin
+        ConfigurationValidator.validate_rails_config!
+        # Lograge is properly configured
         if LogBench.configuration.show_init_message.eql? :full
           print_full_init_message
           print_help_instructions
@@ -36,8 +38,10 @@ module LogBench
         elsif LogBench.configuration.show_init_message.eql? :min
           print_min_init_message
         end
-      else
+      rescue ConfigurationValidator::ConfigurationError => e
+        # Lograge needs configuration
         print_configuration_instructions
+        puts "⚠️  Configuration issue: #{e.message}"
         print_help_instructions
         puts LINE
         puts LINE

@@ -3,7 +3,7 @@
 module LogBench
   module Log
     class Request < Entry
-      attr_reader :method, :path, :status, :duration, :controller, :action
+      attr_reader :method, :path, :status, :duration, :controller, :action, :params
       attr_accessor :related_logs
 
       def initialize(raw_line)
@@ -65,13 +65,14 @@ module LogBench
           duration: duration,
           controller: controller,
           action: action,
+          params: params,
           related_logs: related_logs.map(&:to_h)
         )
       end
 
       private
 
-      attr_writer :method, :path, :status, :duration, :controller, :action
+      attr_writer :method, :path, :status, :duration, :controller, :action, :params
 
       def extract_from_json(data)
         return false unless super
@@ -83,7 +84,21 @@ module LogBench
         self.controller = data["controller"]
         self.action = data["action"]
         self.request_id = data["request_id"]
+        self.params = parse_params(data["params"])
         true
+      end
+
+      def parse_params(params_data)
+        return nil unless params_data
+
+        case params_data
+        when String
+          JSON.parse(params_data)
+        when Hash
+          params_data
+        end
+      rescue JSON::ParserError
+        params_data.to_s
       end
     end
   end
