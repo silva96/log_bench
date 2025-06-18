@@ -156,4 +156,45 @@ class TestLogBench < Minitest::Test
     validator = LogBench::ConfigurationValidator.new
     assert_respond_to validator, :validate_rails_config!
   end
+
+  def test_json_formatter_implements_rails_logger_interface
+    formatter = LogBench::JsonFormatter.new
+
+    # Test that it responds to the Rails Logger::Formatter interface
+    assert_respond_to formatter, :call
+
+    # Test with Rails logger arguments (severity, timestamp, progname, message)
+    severity = "INFO"
+    timestamp = Time.now
+    progname = "Rails"
+    message = "Test message"
+
+    result = formatter.call(severity, timestamp, progname, message)
+
+    # Should return a JSON string with newline
+    assert result.is_a?(String)
+    assert result.end_with?("\n")
+
+    # Should be valid JSON
+    parsed = JSON.parse(result.chomp)
+    assert parsed.is_a?(Hash)
+    assert_equal severity, parsed["level"]
+    assert_equal progname, parsed["progname"]
+  end
+
+  def test_json_formatter_handles_lograge_messages
+    formatter = LogBench::JsonFormatter.new
+
+    # Test with a lograge-style JSON message
+    lograge_message = '{"method":"GET","path":"/users","status":200,"duration":45.2}'
+
+    result = formatter.call("INFO", Time.now, "Rails", lograge_message)
+    parsed = JSON.parse(result.chomp)
+
+    # Should parse and include lograge fields
+    assert_equal "GET", parsed["method"]
+    assert_equal "/users", parsed["path"]
+    assert_equal 200, parsed["status"]
+    assert_equal 45.2, parsed["duration"]
+  end
 end
