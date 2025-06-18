@@ -20,10 +20,15 @@ module LogBench
           end
         FIX
       },
-      formatter: {
+      lograge_formatter: {
         title: "Wrong lograge formatter",
-        description: "LogBench requires LogBench::JsonFormatter for proper log parsing.",
-        fix: "config.lograge.formatter = LogBench::JsonFormatter.new"
+        description: "LogBench requires Lograge::Formatters::Json for lograge formatting.",
+        fix: "config.lograge.formatter = Lograge::Formatters::Json.new"
+      },
+      logger_formatter: {
+        title: "Wrong Rails logger formatter",
+        description: "LogBench requires LogBench::JsonFormatter for Rails logger formatting.",
+        fix: "config.logger.formatter = LogBench::JsonFormatter.new"
       }
     }.freeze
 
@@ -36,7 +41,8 @@ module LogBench
 
       validate_lograge_enabled!
       validate_custom_options!
-      validate_json_formatter!
+      validate_lograge_formatter!
+      validate_logger_formatter!
 
       true
     end
@@ -55,10 +61,18 @@ module LogBench
       end
     end
 
-    def validate_json_formatter!
+    def validate_lograge_formatter!
       formatter = lograge_config&.formatter
+      unless formatter.is_a?(Lograge::Formatters::Json)
+        raise ConfigurationError, build_error_message(:lograge_formatter)
+      end
+    end
+
+    def validate_logger_formatter!
+      logger = Rails.application.config.logger
+      formatter = logger&.formatter
       unless formatter.is_a?(LogBench::JsonFormatter)
-        raise ConfigurationError, build_error_message(:formatter)
+        raise ConfigurationError, build_error_message(:logger_formatter)
       end
     end
 
