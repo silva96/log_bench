@@ -4,6 +4,7 @@ require "zeitwerk"
 require "json"
 require "time"
 require "curses"
+require "lograge"
 
 loader = Zeitwerk::Loader.for_gem
 loader.ignore("#{__dir__}/generators")
