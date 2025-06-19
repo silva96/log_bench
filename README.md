@@ -34,25 +34,15 @@ bundle install
 
 ### 1. Configure Rails Logging
 
-Add this configuration to your `config/environments/development.rb`:
+Not necessary anymore. If you updated from an older version, please remove all
+setup from `config/environments/development.rb`
+
+If you need to configure the message displayed by `log_bench` you can use an
+initializer like so:
 
 ```ruby
-# config/environments/development.rb
-require "lograge"
-
-Rails.application.configure do
-  # ... other configuration ...
-
-  # LogBench: Configure structured logging
-  config.lograge.enabled = true
-  config.lograge.formatter = Lograge::Formatters::Json.new
-  config.log_bench.show_init_message = :full # or :min or :none
-  config.lograge.custom_options = lambda do |event|
-    params = event.payload[:params]&.except("controller", "action")
-    { params: params } if params.present?
-  end
-  config.logger ||= ActiveSupport::Logger.new(config.default_log_file)
-  config.logger.formatter = LogBench::JsonFormatter.new
+LogBench.setup do |config|
+  config.show_init_message = :full # or :min or :none 
 end
 ```
 

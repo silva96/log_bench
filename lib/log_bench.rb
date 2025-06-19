@@ -4,7 +4,7 @@ require "zeitwerk"
 require "json"
 require "time"
 require "curses"
-require_relative "log_bench/version"
+require "lograge"
 
 loader = Zeitwerk::Loader.for_gem
 loader.ignore("#{__dir__}/generators")
@@ -30,7 +30,29 @@ module LogBench
 
     def setup
       self.configuration ||= Configuration.new
-      yield(configuration)
+      return if @already_setup
+
+      yield(configuration) if block_given?
+      configure_rails_logging if defined?(Rails)
+
+      @already_setup = true
+    end
+
+    private
+
+    def configure_rails_logging
+      Rails.application.configure do
+        config.lograge.enabled = true
+        config.lograge.formatter = Lograge::Formatters::Json.new
+
+        config.lograge.custom_options = lambda do |event|
+          event.payload[:params]&.except("controller", "action")
+            .presence&.then { |p| {params: p} }
+        end
+
+        config.logger ||= ActiveSupport::Logger.new(config.default_log_file)
+        config.logger.formatter = LogBench::JsonFormatter.new
+      end
     end
   end
 end
