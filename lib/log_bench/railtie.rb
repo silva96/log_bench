@@ -17,8 +17,7 @@ module LogBench
 
     initializer "log_bench.configure" do |app|
       LogBench.setup do |config|
-        config.show_init_message = app.config.log_bench.show_init_message
-        config.show_init_message = :full if config.show_init_message.nil?
+        config.show_init_message = app.config.log_bench.show_init_message || :full
       end
     end
 
