@@ -13,14 +13,10 @@ module LogBench
   class Error < StandardError; end
 
   extend LogBench::Parse
+  extend LogBench::Setup
 
   class << self
     attr_accessor :configuration
-
-    def setup
-      self.configuration ||= Configuration.new
-      yield(configuration)
-    end
   end
 end
 
