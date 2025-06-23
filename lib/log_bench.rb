@@ -13,10 +13,6 @@ loader.setup
 module LogBench
   class Error < StandardError; end
 
-  class Configuration
-    attr_accessor :show_init_message
-  end
-
   class << self
     attr_accessor :configuration
 
