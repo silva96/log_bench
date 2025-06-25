@@ -7,28 +7,19 @@ module LogBench
     ERROR_CONFIGS = {
       enabled: {
         title: "Lograge is not enabled",
-        description: "LogBench requires lograge to be enabled in your Rails application.",
-        fix: "config.lograge.enabled = true"
+        description: "LogBench requires lograge to be enabled in your Rails application."
       },
       options: {
         title: "Lograge custom_options missing",
-        description: "LogBench needs custom_options to include params fields.",
-        fix: <<~FIX.strip
-          config.lograge.custom_options = lambda do |event|
-            params = event.payload[:params]&.except("controller", "action")
-            { params: params } if params.present?
-          end
-        FIX
+        description: "LogBench needs custom_options to include params fields."
       },
       lograge_formatter: {
         title: "Wrong lograge formatter",
-        description: "LogBench requires Lograge::Formatters::Json for lograge formatting.",
-        fix: "config.lograge.formatter = Lograge::Formatters::Json.new"
+        description: "LogBench requires Lograge::Formatters::Json for lograge formatting."
       },
       logger_formatter: {
         title: "Wrong Rails logger formatter",
-        description: "LogBench requires LogBench::JsonFormatter for Rails logger formatting.",
-        fix: "config.logger.formatter = LogBench::JsonFormatter.new"
+        description: "LogBench requires LogBench::JsonFormatter for Rails logger formatting."
       }
     }.freeze
 
@@ -38,6 +29,7 @@ module LogBench
 
     def validate_rails_config!
       return true unless defined?(Rails) && Rails.application
+      return true unless LogBench.configuration.enabled
 
       validate_lograge_enabled!
       validate_custom_options!
@@ -69,8 +61,11 @@ module LogBench
     end
 
     def validate_logger_formatter!
-      logger = Rails.application.config.logger
+      # Check Rails.logger directly since that's what we set now
+      logger = Rails.logger
       formatter = logger&.formatter
+      # Allow LogBench::JsonFormatter or any custom JSON formatter
+      # Users might have their own JSON formatters that work with LogBench
       unless formatter.is_a?(LogBench::JsonFormatter)
         raise ConfigurationError, build_error_message(:logger_formatter)
       end
@@ -89,8 +84,7 @@ module LogBench
 
         #{config[:description]}
 
-        Add this to config/environments/development.rb:
-        #{config[:fix]}
+        This should be automatically configured by LogBench, but something went wrong.
 
         For complete setup: https://github.com/silva96/log_bench#configuration
       ERROR

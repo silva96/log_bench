@@ -6,19 +6,9 @@ module LogBench
     HELP_INSTRUCTIONS = "For help: log_bench --help"
     MIN_INIT_MESSAGE = "✅ LogBench is ready to use!"
     FULL_INIT_MESSAGE = <<~MSG.chomp
-      \n#{LINE}
-      \n#{LINE}
       #{MIN_INIT_MESSAGE}
-      #{LINE}
       View your logs: log_bench log/development.log
     MSG
-    CONFIGURATION_INSTRUCTIONS = <<~INSTRUCTIONS
-      \n#{LINE}
-      \n#{LINE}
-      🚀 LogBench is ready to configure!
-      #{LINE}
-      To start using LogBench:
-    INSTRUCTIONS
 
     railtie_name :log_bench
 
@@ -29,45 +19,111 @@ module LogBench
       load "tasks/log_bench.rake"
     end
 
-    initializer "log_bench.configure" do |app|
+    # Run AFTER user initializers to pick up their configuration
+    initializer "log_bench.configure", after: :load_config_initializers do |app|
       LogBench.setup do |config|
+        # Enable by default in development for backward compatibility
+        config.enabled = if app.config.log_bench.enabled.nil?
+          Rails.env.development?
+        else
+          app.config.log_bench.enabled
+        end
+
         config.show_init_message = app.config.log_bench.show_init_message
         config.show_init_message = :full if config.show_init_message.nil?
+        config.base_controller_classes = app.config.log_bench.base_controller_classes if app.config.log_bench.base_controller_classes
+        config.configure_lograge_automatically = app.config.log_bench.configure_lograge_automatically unless app.config.log_bench.configure_lograge_automatically.nil?
       end
     end
 
-    # Show installation instructions when Rails starts in development
+    # Show success message when Rails starts in development
     initializer "log_bench.show_instructions", after: :load_config_initializers do
-      return unless Rails.env.development?
+      next unless Rails.env.development? && LogBench.configuration.enabled
 
-      validate_lograge_config
+      print_configured_init_message
+    rescue => e
+      puts LINE
+      puts "⚠️  LogBench setup issue: #{e.message} at: \n#{e.backtrace.join("\n")}"
+      puts HELP_INSTRUCTIONS
+      puts LINE
+    end
+
+    # Single after_initialize for ALL setup that needs to happen after Rails is ready
+    config.after_initialize do |app|
+      if LogBench.configuration.enabled
+        LogBench::Railtie.setup_lograge(app)
+        LogBench::Railtie.setup_current_attributes
+        LogBench::Railtie.setup_rails_logger_final
+        LogBench::Railtie.validate_configuration!
+      end
+    end
+
+    class << self
+      def setup_lograge(app)
+        return unless LogBench.configuration.configure_lograge_automatically
+
+        app.config.lograge.enabled = true
+        app.config.lograge.formatter = Lograge::Formatters::Json.new
+        app.config.lograge.custom_options = lambda do |event|
+          params = event.payload[:params]&.except("controller", "action")
+          {params: params} if params.present?
+        end
+      end
+
+      def setup_current_attributes
+        # Inject Current.request_id into base controllers
+        LogBench.configuration.base_controller_classes.each do |controller_class_name|
+          controller_class = controller_class_name.safe_constantize
+          next unless controller_class
+
+          inject_current_request_id(controller_class)
+        end
+      end
+
+      # Setup Rails logger by re-wrapping with TaggedLogging
+      def setup_rails_logger_final
+        # Get the underlying logger (unwrap TaggedLogging if present)
+        base_logger = Rails.logger.respond_to?(:logger) ? Rails.logger.logger : Rails.logger
+        base_logger.formatter = LogBench::JsonFormatter.new
+        # Re-wrap with TaggedLogging to maintain Rails compatibility
+        Rails.logger = ActiveSupport::TaggedLogging.new(base_logger)
+      end
+
+      def inject_current_request_id(controller_class)
+        return if controller_class.method_defined?(:set_current_request_id)
+
+        controller_class.class_eval do
+          before_action :set_current_request_id
+
+          private
+
+          def set_current_request_id
+            LogBench::Current.request_id = request.request_id if defined?(LogBench::Current)
+          end
+        end
+      end
+
+      # Validate that LogBench setup worked correctly
+      def validate_configuration!
+        ConfigurationValidator.validate_rails_config!
+      rescue ConfigurationValidator::ConfigurationError => e
+        puts LINE
+        puts "❌ LogBench Configuration Error:"
+        puts e.message
+        puts "LogBench will be disabled until this is fixed."
+        puts LINE
+      end
     end
 
     private
 
-    # Use configuration validator to check lograge setup
-    def validate_lograge_config
-      ConfigurationValidator.validate_rails_config!
-      print_configured_init_message
-    rescue ConfigurationValidator::ConfigurationError => e
-      print_configuration_error_message(e)
-    end
-
-    # Lograge is properly configured
     def print_configured_init_message
       case LogBench.configuration.show_init_message
       when :full, nil
-        puts FULL_INIT_MESSAGE, HELP_INSTRUCTIONS, LINE, LINE
+        puts LINE, FULL_INIT_MESSAGE, HELP_INSTRUCTIONS, LINE
       when :min
-        puts MIN_INIT_MESSAGE
+        puts LINE, MIN_INIT_MESSAGE, LINE
       end
-    end
-
-    # Lograge needs configuration
-    def print_configuration_error_message(error)
-      puts CONFIGURATION_INSTRUCTIONS
-      puts "⚠️  Configuration issue: #{error.message}"
-      puts HELP_INSTRUCTIONS, LINE, LINE
     end
   end
 end

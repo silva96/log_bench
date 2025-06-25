@@ -3,14 +3,11 @@ namespace :log_bench do
   task :install do
     puts "LogBench Configuration Instructions:"
     puts
-    puts "Please see the README.md for complete setup instructions:"
-    puts "https://github.com/silva96/log_bench#configuration"
+    puts "LogBench is automatically enabled in development!"
+    puts "Just restart your Rails server and it will work."
     puts
-    puts "Quick setup:"
-    puts "1. Add 'require \"lograge\"' to config/environments/development.rb"
-    puts "2. Configure lograge and JsonFormatter (see README)"
-    puts "3. Set up Current model and ApplicationController"
-    puts "4. Restart Rails server"
+    puts "For customization or other environments, see:"
+    puts "https://github.com/silva96/log_bench#configuration"
   end
 
   desc "Show LogBench usage instructions"
@@ -25,7 +22,7 @@ namespace :log_bench do
         2. Run bundle install:
            bundle install
            
-        3. Configure lograge (see README.md):
+        3. Optionally configure log_bench (see README.md):
            https://github.com/silva96/log_bench#configuration
            
         4. Restart your Rails server
@@ -46,11 +43,7 @@ namespace :log_bench do
         - Interactive TUI with dual panes
         - Request filtering and sorting
         - SQL query analysis
-        - Color-coded HTTP methods and status codes
-        
-      Requirements:
-        - Lograge gem with JSON formatter
-        - Rails application logs in lograge format
+        - Color-coded HTTP methods and status codess
     HELP
   end
 end

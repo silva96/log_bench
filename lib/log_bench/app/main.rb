@@ -21,7 +21,6 @@ module LogBench
         self.log_file_path = find_log_file(log_file_path)
         self.state = State.new
         validate_log_file!
-        validate_configuration!
       end
 
       def run
@@ -55,13 +54,6 @@ module LogBench
 
       def log_file_name
         File.basename(log_file_path)
-      end
-
-      def validate_configuration!
-        ConfigurationValidator.validate_rails_config!
-      rescue ConfigurationValidator::ConfigurationError => e
-        puts e.message
-        exit 1
       end
 
       def setup_screen
