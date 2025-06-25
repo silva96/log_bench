@@ -3,7 +3,7 @@
 module LogBench
   module Parse
     def parse(lines)
-      lines = [lines] if lines.is_a?(String)
+      lines = Array(lines)
       collection = Log::Collection.new(lines)
       collection.requests
     end
