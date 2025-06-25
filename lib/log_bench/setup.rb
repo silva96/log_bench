@@ -3,7 +3,7 @@
 module LogBench
   module Setup
     def setup
-      return if @_already_setup
+      return raise "already setup" if @_already_setup
 
       yield(configuration) if block_given?
       configure_rails_logging
