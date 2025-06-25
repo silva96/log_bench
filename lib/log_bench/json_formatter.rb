@@ -66,7 +66,9 @@ module LogBench
     def current_request_id
       request_id = nil
 
-      if defined?(Current) && Current.respond_to?(:request_id)
+      if defined?(LogBench::Current) && LogBench::Current.respond_to?(:request_id)
+        request_id = LogBench::Current.request_id
+      elsif defined?(Current) && Current.respond_to?(:request_id)
         request_id = Current.request_id
       elsif defined?(RequestStore) && RequestStore.exist?(:request_id)
         request_id = RequestStore.read(:request_id)

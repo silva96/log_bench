@@ -32,61 +32,65 @@ bundle install
 
 ## Configuration
 
-### 1. Configure Rails Logging
+LogBench is **automatically enabled in development environment** for backward compatibility. This gem heavily relies on [lograge](https://github.com/roidrage/lograge) gem for request tracking, we add lograge to your Rails application and configure it automatically, but you can also configure lograge manually if you want.
 
-Add this configuration to your `config/environments/development.rb`:
+### Default Behavior
+
+LogBench works out of the box! Just add the gem and restart your Rails server.
+
+It automatically configures:
+- Lograge with JSON formatter and custom options
+- Rails logger with LogBench::JsonFormatter
+- Request ID tracking via LogBench::Current
+- Automatic injection of request_id into ApplicationController
+
+No configuration needed in development!
+
+### Custom Configuration (Optional)
+
+To customize LogBench behavior, create `config/initializers/log_bench.rb`:
 
 ```ruby
-# config/environments/development.rb
-require "lograge"
+# config/initializers/log_bench.rb
+LogBench.setup do |config|
+  # Enable/disable LogBench (default: true in development, false elsewhere)
+  config.enabled = Rails.env.development? # or any other condition
+
+  # Disable automatic lograge configuration (if you want to configure lograge manually)
+  # config.configure_lograge_automatically = false  # (default: true)
+
+  # Customize initialization message
+  # config.show_init_message = :min # :full, :min, or :none (default: :full)
+
+  # Specify which controllers to inject request_id tracking
+  # config.base_controller_classes = %w[CustomBaseController] # (default: %w[ApplicationController, ActionController::Base])
+end
+```
+
+### Manual Lograge Configuration
+
+If you already have lograge configured or want to manage it manually:
+
+```ruby
+# config/initializers/log_bench.rb
+LogBench.setup do |config|
+  # ... other config ...
+  config.configure_lograge_automatically = false  # Don't touch my lograge config!
+end
+
+# Then configure lograge yourself in config/environments/development.rb or an initializer, 
 
 Rails.application.configure do
-  # ... other configuration ...
-
-  # LogBench: Configure structured logging
   config.lograge.enabled = true
   config.lograge.formatter = Lograge::Formatters::Json.new
-  config.log_bench.show_init_message = :full # or :min or :none
   config.lograge.custom_options = lambda do |event|
+    # Your custom lograge configuration
     params = event.payload[:params]&.except("controller", "action")
     { params: params } if params.present?
   end
-  config.logger ||= ActiveSupport::Logger.new(config.default_log_file)
-  config.logger.formatter = LogBench::JsonFormatter.new
 end
 ```
-
-### 2. Set Up Request ID Tracking
-
-Create or update your `Current` model to track request IDs:
-
-```ruby
-# app/models/current.rb
-# frozen_string_literal: true
-
-class Current < ActiveSupport::CurrentAttributes
-  attribute :request_id
-end
-```
-
-Add request ID tracking to your ApplicationController:
-
-```ruby
-# app/controllers/application_controller.rb
-class ApplicationController < ActionController::Base
-  before_action :set_current_request_identifier
-
-  protected
-
-  def set_current_request_identifier
-    Current.request_id = request.request_id
-  end
-end
-```
-
-### 3. Restart Your Rails Server
-
-After configuration, restart your Rails development server:
+For more information about lograge configuration, see [Lograge's documentation](https://github.com/roidrage/lograge).
 
 ## Usage
 

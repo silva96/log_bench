@@ -18,12 +18,11 @@ def show_help
       log_bench /path/to/app/log/test.log  # View log from another app
 
     Setup (for Rails apps):
-      See README.md for complete configuration instructions:
-      https://github.com/silva96/log_bench#installation
+      LogBench is automatically enabled in development!
+      Just restart your Rails server after installing the gem.
 
-    Requirements:
-      - Lograge gem with JSON formatter
-      - Rails application logs in lograge format
+      To customize or enable in other environments:
+      For complete setup: https://github.com/silva96/log_bench#configuration
 
     For more info: https://github.com/silva96/log_bench
   HELP
