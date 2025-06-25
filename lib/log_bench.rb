@@ -16,9 +16,8 @@ module LogBench
   extend LogBench::Parse
   extend LogBench::Setup
 
-  class << self
-    attr_accessor :configuration
-  end
+  singleton_class.attr_accessor :configuration
+  self.configuration = Configuration.new
 end
 
 # Load Railtie if Rails is available

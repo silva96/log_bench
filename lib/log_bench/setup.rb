@@ -3,7 +3,6 @@
 module LogBench
   module Setup
     def setup
-      self.configuration ||= Configuration.new
       yield(configuration)
     end
   end
