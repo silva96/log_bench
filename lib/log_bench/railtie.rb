@@ -57,18 +57,17 @@ module LogBench
     def print_configured_init_message
       case LogBench.configuration.show_init_message
       when :full, nil
-        puts [FULL_INIT_MESSAGE, HELP_INSTRUCTIONS, LINE, LINE]
+        puts FULL_INIT_MESSAGE, HELP_INSTRUCTIONS, LINE, LINE
       when :min
         puts MIN_INIT_MESSAGE
-      when :none then nil
       end
     end
 
     # Lograge needs configuration
     def print_configuration_error_message(error)
       puts CONFIGURATION_INSTRUCTIONS
-      puts "⚠️  Configuration issue: #{e.message}"
-      puts [HELP_INSTRUCTIONS, LINE, LINE]
+      puts "⚠️  Configuration issue: #{error.message}"
+      puts HELP_INSTRUCTIONS, LINE, LINE
     end
   end
 end
