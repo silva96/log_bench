@@ -3,12 +3,26 @@ require "rails/railtie"
 module LogBench
   class Railtie < Rails::Railtie
     LINE = "=" * 70
+    HELP_INSTRUCTIONS = "For help: log_bench --help"
+    MIN_INIT_MESSAGE = "✅ LogBench is ready to use!"
+    FULL_INIT_MESSAGE = <<~MSG.chomp
+      \n#{LINE}
+      \n#{LINE}
+      #{MIN_INIT_MESSAGE}
+      #{LINE}
+      View your logs: log_bench log/development.log
+    MSG
+    CONFIGURATION_INSTRUCTIONS = <<~INSTRUCTIONS
+      \n#{LINE}
+      \n#{LINE}
+      🚀 LogBench is ready to configure!
+      #{LINE}
+      To start using LogBench:
+    INSTRUCTIONS
 
     railtie_name :log_bench
 
     config.log_bench = ActiveSupport::OrderedOptions.new
-
-    # LogBench uses manual configuration (see README.md)
 
     # Provide helpful rake tasks
     rake_tasks do
@@ -26,56 +40,34 @@ module LogBench
     initializer "log_bench.show_instructions", after: :load_config_initializers do
       return unless Rails.env.development?
 
-      # Use configuration validator to check lograge setup
-      begin
-        ConfigurationValidator.validate_rails_config!
-        # Lograge is properly configured
-        if LogBench.configuration.show_init_message.eql? :full
-          print_full_init_message
-          print_help_instructions
-          puts LINE
-          puts LINE
-        elsif LogBench.configuration.show_init_message.eql? :min
-          print_min_init_message
-        end
-      rescue ConfigurationValidator::ConfigurationError => e
-        # Lograge needs configuration
-        print_configuration_instructions
-        puts "⚠️  Configuration issue: #{e.message}"
-        print_help_instructions
-        puts LINE
-        puts LINE
-      end
+      validate_lograge_config
     end
 
     private
 
-    def print_configuration_instructions
-      puts "🚀 LogBench is ready to configure!"
-      puts LINE
-      puts "To start using LogBench:"
-      puts "  1. See README.md for configuration instructions"
-      puts "  2. Configure lograge in config/environments/development.rb"
-      puts "  3. Restart your Rails server"
-      puts "  4. Make some requests to generate logs"
-      puts "  5. View logs: log_bench log/development.log"
-      puts ""
+    # Use configuration validator to check lograge setup
+    def validate_lograge_config
+      ConfigurationValidator.validate_rails_config!
+      print_configured_init_message
+    rescue ConfigurationValidator::ConfigurationError => e
+      print_configuration_error_message(e)
     end
 
-    def print_min_init_message
-      puts "✅ LogBench is ready to use!"
+    # Lograge is properly configured
+    def print_configured_init_message
+      case LogBench.configuration.show_init_message
+      when :full, nil
+        puts FULL_INIT_MESSAGE, HELP_INSTRUCTIONS, LINE, LINE
+      when :min
+        puts MIN_INIT_MESSAGE
+      end
     end
 
-    def print_full_init_message
-      puts "\n" + LINE
-      puts "\n" + LINE
-      puts "✅ LogBench is ready to use!"
-      puts LINE
-      puts "View your logs: log_bench log/development.log"
-    end
-
-    def print_help_instructions
-      puts "For help: log_bench --help"
+    # Lograge needs configuration
+    def print_configuration_error_message(error)
+      puts CONFIGURATION_INSTRUCTIONS
+      puts "⚠️  Configuration issue: #{error.message}"
+      puts HELP_INSTRUCTIONS, LINE, LINE
     end
   end
 end
