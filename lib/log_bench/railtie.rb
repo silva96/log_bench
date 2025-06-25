@@ -39,6 +39,7 @@ module LogBench
     # Show installation instructions when Rails starts in development
     initializer "log_bench.show_instructions", after: :load_config_initializers do
       return unless Rails.env.development?
+      return unless LogBench.enabled?
 
       validate_lograge_config
     end
