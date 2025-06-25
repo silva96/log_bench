@@ -21,19 +21,7 @@ module LogBench
 
     # Run AFTER user initializers to pick up their configuration
     initializer "log_bench.configure", after: :load_config_initializers do |app|
-      LogBench.setup do |config|
-        # Enable by default in development for backward compatibility
-        config.enabled = if app.config.log_bench.enabled.nil?
-          Rails.env.development?
-        else
-          app.config.log_bench.enabled
-        end
-
-        config.show_init_message = app.config.log_bench.show_init_message
-        config.show_init_message = :full if config.show_init_message.nil?
-        config.base_controller_classes = app.config.log_bench.base_controller_classes if app.config.log_bench.base_controller_classes
-        config.configure_lograge_automatically = app.config.log_bench.configure_lograge_automatically unless app.config.log_bench.configure_lograge_automatically.nil?
-      end
+      LogBench.setup
     end
 
     # Show success message when Rails starts in development
