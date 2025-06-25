@@ -21,17 +21,17 @@ module LogBench
       return unless defined?(Rails)
       return unless enabled?
 
-      Rails.application.configure do
-        config.lograge.enabled = true
-        config.lograge.formatter = Lograge::Formatters::Json.new
+      Rails.application.configure do |app|
+        app.config.lograge.enabled = true
+        app.config.lograge.formatter = Lograge::Formatters::Json.new
 
-        config.lograge.custom_options = lambda do |event|
+        app.config.lograge.custom_options = lambda do |event|
           event.payload[:params]&.except("controller", "action")
             .presence&.then { |p| {params: p} }
         end
 
-        config.logger ||= ActiveSupport::Logger.new(config.default_log_file)
-        config.logger.formatter = LogBench::JsonFormatter.new
+        app.config.logger ||= ActiveSupport::Logger.new(app.config.default_log_file)
+        app.config.logger.formatter = LogBench::JsonFormatter.new
       end
     end
   end
