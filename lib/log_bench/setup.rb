@@ -11,8 +11,15 @@ module LogBench
       @_already_setup = true
     end
 
+    def enabled?
+      configuration.enabled?
+    end
+
+    private
+
     def configure_rails_logging
       return unless defined?(Rails)
+      return unless enabled?
 
       Rails.application.configure do
         config.lograge.enabled = true

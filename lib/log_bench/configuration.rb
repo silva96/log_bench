@@ -8,5 +8,9 @@ module LogBench
       @show_init_message = :full
       @enable = true
     end
+
+    def enabled?
+      @enable
+    end
   end
 end
