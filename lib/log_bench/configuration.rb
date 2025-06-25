@@ -6,7 +6,7 @@ module LogBench
 
     def initialize
       @show_init_message = :full
-      @enabled = false
+      @enabled = Rails.env.development?
       @base_controller_classes = %w[ApplicationController ActionController::Base]
       @configure_lograge_automatically = true  # Configure lograge by default
     end
