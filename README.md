@@ -52,18 +52,20 @@ To customize LogBench behavior, create `config/initializers/log_bench.rb`:
 
 ```ruby
 # config/initializers/log_bench.rb
-LogBench.setup do |config|
-  # Enable/disable LogBench (default: true in development, false elsewhere)
-  config.enabled = Rails.env.development? # or any other condition
+if defined?(LogBench)
+  LogBench.setup do |config|
+    # Enable/disable LogBench (default: true in development, false elsewhere)
+    config.enabled = Rails.env.development? # or any other condition
+  
+    # Disable automatic lograge configuration (if you want to configure lograge manually)
+    # config.configure_lograge_automatically = false  # (default: true)
 
-  # Disable automatic lograge configuration (if you want to configure lograge manually)
-  # config.configure_lograge_automatically = false  # (default: true)
-
-  # Customize initialization message
-  # config.show_init_message = :min # :full, :min, or :none (default: :full)
-
-  # Specify which controllers to inject request_id tracking
-  # config.base_controller_classes = %w[CustomBaseController] # (default: %w[ApplicationController, ActionController::Base])
+    # Customize initialization message
+    # config.show_init_message = :min # :full, :min, or :none (default: :full)
+  
+    # Specify which controllers to inject request_id tracking
+    # config.base_controller_classes = %w[CustomBaseController] # (default: %w[ApplicationController, ActionController::Base])
+  end
 end
 ```
 
@@ -73,9 +75,11 @@ If you already have lograge configured or want to manage it manually:
 
 ```ruby
 # config/initializers/log_bench.rb
-LogBench.setup do |config|
-  # ... other config ...
-  config.configure_lograge_automatically = false  # Don't touch my lograge config!
+if defined?(LogBench)
+  LogBench.setup do |config|
+    # ... other config ...
+    config.configure_lograge_automatically = false  # Don't touch my lograge config!
+  end
 end
 
 # Then configure lograge yourself in config/environments/development.rb or an initializer, 
