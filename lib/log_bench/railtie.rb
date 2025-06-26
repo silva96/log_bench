@@ -1,4 +1,5 @@
 require "rails/railtie"
+require "lograge"
 
 module LogBench
   class Railtie < Rails::Railtie
