@@ -197,4 +197,51 @@ class TestLogBench < Minitest::Test
     assert_equal 200, parsed["status"]
     assert_equal 45.2, parsed["duration"]
   end
+
+  def test_json_formatter_handles_tagged_logging
+    formatter = LogBench::JsonFormatter.new
+
+    # Test with TaggedLogging format: [tag1] [tag2] message
+    # Note: When calling formatter directly (without TaggedLogging wrapper),
+    # tags won't be extracted since TaggedLogging manages the tag stack
+    tagged_message = "[API] [User123] Processing user request"
+
+    result = formatter.call("INFO", Time.now, "Rails", tagged_message)
+    parsed = JSON.parse(result.chomp)
+
+    # Without TaggedLogging wrapper, message is treated as plain text
+    assert_nil parsed["tags"]  # No tags when called directly
+    assert_equal "[API] [User123] Processing user request", parsed["message"]
+    assert_equal "INFO", parsed["level"]
+  end
+
+  def test_json_formatter_handles_mixed_tagged_and_lograge
+    formatter = LogBench::JsonFormatter.new
+
+    # Test with tags + lograge JSON
+    # Note: Without TaggedLogging wrapper, this is treated as a lograge message
+    tagged_lograge = '[ActiveJob] {"method":"POST","path":"/jobs","status":200}'
+
+    result = formatter.call("INFO", Time.now, "Rails", tagged_lograge)
+    parsed = JSON.parse(result.chomp)
+
+    # Without TaggedLogging wrapper, the [ActiveJob] part is treated as message text
+    assert_nil parsed["tags"]  # No tags when called directly
+    assert_equal '[ActiveJob] {"method":"POST","path":"/jobs","status":200}', parsed["message"]
+  end
+
+  def test_json_formatter_handles_no_tags
+    formatter = LogBench::JsonFormatter.new
+
+    # Test with regular message (no tags)
+    regular_message = "Simple log message"
+
+    result = formatter.call("INFO", Time.now, "Rails", regular_message)
+    parsed = JSON.parse(result.chomp)
+
+    # Should not have tags field
+    assert_nil parsed["tags"]
+    assert_equal "Simple log message", parsed["message"]
+    assert_equal "INFO", parsed["level"]
+  end
 end

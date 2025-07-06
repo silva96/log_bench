@@ -37,12 +37,17 @@ module LogBench
       puts LINE
     end
 
-    # Single after_initialize for ALL setup that needs to happen after Rails is ready
-    config.after_initialize do |app|
+    # Configure lograge after user initializers but before Rails logger
+    initializer "log_bench.configure_lograge", after: :load_config_initializers, before: :initialize_logger do |app|
       if LogBench.configuration.enabled
         LogBench::Railtie.setup_lograge(app)
-        LogBench::Railtie.setup_current_attributes
+      end
+    end
+
+    config.after_initialize do
+      if LogBench.configuration.enabled
         LogBench::Railtie.setup_rails_logger_final
+        LogBench::Railtie.setup_current_attributes
         LogBench::Railtie.validate_configuration!
       end
     end
@@ -69,7 +74,6 @@ module LogBench
         end
       end
 
-      # Setup Rails logger by re-wrapping with TaggedLogging
       def setup_rails_logger_final
         # Get the underlying logger (unwrap TaggedLogging if present)
         base_logger = Rails.logger.respond_to?(:logger) ? Rails.logger.logger : Rails.logger
