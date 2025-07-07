@@ -1,10 +1,14 @@
 # frozen_string_literal: true
 
 require "json"
+require "logger"
 
 module LogBench
   # A simple JSON formatter for Rails loggers that creates LogBench-compatible
+  # JSON logs. Extends TaggedLogging::Formatter for full Rails compatibility.
   class JsonFormatter < ::Logger::Formatter
+    include ActiveSupport::TaggedLogging::Formatter
+
     def call(severity, timestamp, progname, message)
       log_entry = build_log_entry(severity, timestamp, progname, message)
       log_entry.to_json + "\n"
@@ -17,16 +21,22 @@ module LogBench
 
     def build_log_entry(severity, timestamp, progname, message)
       entry = message_to_hash(message)
+      tags = current_tags
       entry = parse_lograge_message(entry[:message]) if lograge_message?(entry)
       request_id = current_request_id
 
-      entry.merge!(
+      base_entry = {
         level: severity,
         timestamp: timestamp.utc.iso8601(3),
         time: timestamp.to_f,
         request_id: request_id,
         progname: progname
-      ).compact
+      }
+
+      # Add tags if present
+      base_entry[:tags] = tags if tags.any?
+
+      entry.merge!(base_entry).compact
     end
 
     def message_to_hash(message)
