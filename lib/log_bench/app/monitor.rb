@@ -3,8 +3,8 @@
 module LogBench
   module App
     class Monitor
-      def initialize(log_file_path, state)
-        self.log_file_path = log_file_path
+      def initialize(log_file, state)
+        self.log_file = log_file
         self.state = state
         self.running = false
       end
@@ -23,11 +23,9 @@ module LogBench
 
       private
 
-      attr_accessor :log_file_path, :state, :thread, :running
+      attr_accessor :log_file, :state, :thread, :running
 
       def monitor_loop
-        log_file = Log::File.new(log_file_path)
-
         loop do
           break unless running
 

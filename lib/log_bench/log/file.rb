@@ -65,6 +65,10 @@ module LogBench
         ::File.mtime(path)
       end
 
+      def mark_as_read!
+        self.last_position = size
+      end
+
       private
 
       attr_writer :path, :last_position

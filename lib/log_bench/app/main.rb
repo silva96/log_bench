@@ -37,7 +37,7 @@ module LogBench
 
       private
 
-      attr_accessor :log_file_path, :state, :screen, :monitor, :input_handler, :renderer
+      attr_accessor :log_file_path, :log_file, :state, :screen, :monitor, :input_handler, :renderer
 
       def find_log_file(path)
         candidates = [path] + DEFAULT_LOG_PATHS
@@ -67,8 +67,9 @@ module LogBench
       end
 
       def load_initial_data
-        log_file = Log::File.new(log_file_path)
+        self.log_file = Log::File.new(log_file_path)
         state.requests = log_file.requests
+        log_file.mark_as_read!
       end
 
       def check_for_updates
@@ -81,7 +82,7 @@ module LogBench
       end
 
       def start_monitoring
-        self.monitor = Monitor.new(log_file_path, state)
+        self.monitor = Monitor.new(log_file, state)
         monitor.start
       end
 
