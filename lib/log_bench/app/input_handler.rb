@@ -52,12 +52,12 @@ module LogBench
 
       def handle_filter_input(ch)
         case ch
-        when 10, 13, 27
+        when 10, 13, 27  # Enter, Return, Escape
           state.exit_filter_mode
-        when KEY_UP, "k", "K"
+        when KEY_UP
           state.exit_filter_mode
           state.navigate_up
-        when KEY_DOWN, "j", "J"
+        when KEY_DOWN
           state.exit_filter_mode
           state.navigate_down
         when 127, 8  # Backspace
