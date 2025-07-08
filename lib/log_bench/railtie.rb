@@ -26,7 +26,7 @@ module LogBench
     end
 
     # Show success message when Rails starts in development
-    initializer "log_bench.show_instructions", after: :load_config_initializers do
+    initializer "log_bench.show_instructions", after: "log_bench.configure" do
       next unless Rails.env.development? && LogBench.configuration.enabled
 
       print_configured_init_message
@@ -37,8 +37,8 @@ module LogBench
       puts LINE
     end
 
-    # Configure lograge after user initializers but before Rails logger
-    initializer "log_bench.configure_lograge", after: :load_config_initializers, before: :initialize_logger do |app|
+    # Configure lograge after the gem was already configured
+    initializer "log_bench.configure_lograge", after: "log_bench.configure" do |app|
       if LogBench.configuration.enabled
         LogBench::Railtie.setup_lograge(app)
       end
