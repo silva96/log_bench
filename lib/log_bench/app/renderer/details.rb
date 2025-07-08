@@ -14,6 +14,8 @@ module LogBench
           self.state = state
           self.scrollbar = scrollbar
           self.ansi_renderer = ansi_renderer
+          self.cached_lines = nil
+          self.cache_key = nil
         end
 
         def draw
@@ -26,7 +28,7 @@ module LogBench
 
         private
 
-        attr_accessor :screen, :state, :scrollbar, :ansi_renderer
+        attr_accessor :screen, :state, :scrollbar, :ansi_renderer, :cached_lines, :cache_key
 
         def draw_header
           detail_win.setpos(0, 2)
@@ -54,7 +56,7 @@ module LogBench
           request = state.current_request
           return unless request
 
-          lines = build_detail_lines(request)
+          lines = get_cached_detail_lines(request)
           visible_height = detail_win.maxy - 2
 
           adjust_detail_scroll(lines.size, visible_height)
@@ -93,6 +95,30 @@ module LogBench
           if lines.size > visible_height
             scrollbar.draw(detail_win, visible_height, state.detail_scroll_offset, lines.size)
           end
+        end
+
+        def get_cached_detail_lines(request)
+          current_cache_key = build_cache_key(request)
+
+          # Return cached lines if cache is still valid
+          if cached_lines && cache_key == current_cache_key
+            return cached_lines
+          end
+
+          # Cache is invalid, rebuild lines
+          self.cached_lines = build_detail_lines(request)
+          self.cache_key = current_cache_key
+          cached_lines
+        end
+
+        def build_cache_key(request)
+          # Cache key includes factors that affect the rendered output
+          [
+            request.request_id,
+            request.related_logs.size,
+            state.detail_filter.display_text,
+            detail_win.maxx  # Window width affects text wrapping
+          ]
         end
 
         def build_detail_lines(request)
