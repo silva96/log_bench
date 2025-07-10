@@ -23,10 +23,8 @@ module LogBench
         case entry.type
         when :http_request
           Request.build(entry.raw_line)
-        when :sql
+        when :sql, :cache
           QueryEntry.build(entry.raw_line)
-        when :cache
-          CacheEntry.build(entry.raw_line)
         when :sql_call_line
           CallLineEntry.build(entry.raw_line)
         else

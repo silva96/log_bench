@@ -3,8 +3,7 @@
 module LogBench
   module Log
     class Request < Entry
-      attr_reader :method, :path, :status, :duration, :controller, :action, :params
-      attr_accessor :related_logs
+      attr_reader :method, :path, :status, :duration, :controller, :action, :params, :related_logs
 
       def initialize(raw_line)
         super
@@ -21,28 +20,34 @@ module LogBench
       end
 
       def add_related_log(log_entry)
-        related_logs << log_entry if log_entry.related_log?
-        self.related_logs = related_logs.sort_by(&:timestamp)
+        if log_entry.related_log?
+          related_logs << log_entry
+          clear_memoized_values
+        end
       end
 
       def queries
-        related_logs.select { |log| log.is_a?(QueryEntry) }
+        @queries ||= related_logs.select { |log| log.is_a?(QueryEntry) }
       end
 
       def cache_operations
-        related_logs.select { |log| log.is_a?(CacheEntry) }
+        @cache_operations ||= related_logs.select { |log| log.is_a?(QueryEntry) && log.cached? }
+      end
+
+      def sql_queries
+        @sql_queries ||= related_logs.select { |log| log.is_a?(QueryEntry) && !log.cached? }
       end
 
       def query_count
-        queries.size
+        @query_count ||= queries.size
       end
 
       def total_query_time
-        queries.sum(&:duration_ms)
+        @total_query_time ||= queries.sum(&:duration_ms)
       end
 
       def cached_query_count
-        cache_operations.size
+        @cached_query_count ||= cache_operations.size
       end
 
       def success?
@@ -57,22 +62,22 @@ module LogBench
         status && status >= 500
       end
 
-      def to_h
-        super.merge(
-          method: method,
-          path: path,
-          status: status,
-          duration: duration,
-          controller: controller,
-          action: action,
-          params: params,
-          related_logs: related_logs.map(&:to_h)
-        )
-      end
-
       private
 
       attr_writer :method, :path, :status, :duration, :controller, :action, :params
+
+      def related_logs=(value)
+        @related_logs = value
+        clear_memoized_values
+      end
+
+      def clear_memoized_values
+        @queries = nil
+        @cache_operations = nil
+        @query_count = nil
+        @total_query_time = nil
+        @cached_query_count = nil
+      end
 
       def extract_from_json(data)
         return false unless super

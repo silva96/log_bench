@@ -123,13 +123,12 @@ module LogBench
 
         def build_detail_lines(request)
           lines = []
-          max_width = detail_win.maxx - 6  # Leave margin for borders and scrollbar
-
-          # Convert request to log format for compatibility with original implementation
-          log = request_to_log_format(request)
+          # Cache window width to avoid repeated method calls
+          window_width = detail_win.maxx
+          max_width = window_width - 6  # Leave margin for borders and scrollbar
 
           # Method - separate label and value colors
-          method_color = case log[:method]
+          method_color = case request.method
           when "GET" then color_pair(3) | A_BOLD
           when "POST" then color_pair(4) | A_BOLD
           when "PUT" then color_pair(5) | A_BOLD
@@ -139,58 +138,28 @@ module LogBench
 
           lines << EMPTY_LINE
           lines << {
-            text: "Method: #{log[:method]}",
+            text: "Method: #{request.method}",
             color: nil,
             segments: [
               {text: "Method: ", color: color_pair(1)},
-              {text: log[:method], color: method_color}
+              {text: request.method, color: method_color}
             ]
           }
 
           # Path - allow multiple lines with proper color separation
-          add_path_lines(lines, log, max_width)
-          add_status_duration_lines(lines, log)
-          add_controller_lines(lines, log)
-          add_request_id_lines(lines, log)
-          add_params_lines(lines, log, max_width)
-          add_related_logs_section(lines, log)
+          add_path_lines(lines, request, max_width)
+          add_status_duration_lines(lines, request)
+          add_controller_lines(lines, request)
+          add_request_id_lines(lines, request)
+          add_params_lines(lines, request, max_width)
+          add_related_logs_section(lines, request)
 
           lines
         end
 
-        def request_to_log_format(request)
-          {
-            method: request.method,
-            path: request.path,
-            status: request.status,
-            duration: request.duration,
-            controller: request.controller,
-            action: request.action,
-            params: request.params,
-            request_id: request.request_id,
-            related_logs: build_related_logs(request)
-          }
-        end
-
-        def build_related_logs(request)
-          related = []
-
-          # Add all related logs from the request
-          request.related_logs.each do |log|
-            related << {
-              type: log.type,
-              content: log.content,
-              timing: log.timing,
-              timestamp: log.timestamp
-            }
-          end
-
-          related
-        end
-
-        def add_path_lines(lines, log, max_width)
+        def add_path_lines(lines, request, max_width)
           path_prefix = "Path: "
-          remaining_path = log[:path]
+          remaining_path = request.path
 
           # First line starts after "Path: " (6 characters)
           first_line_width = max_width - path_prefix.length
@@ -225,10 +194,10 @@ module LogBench
           end
         end
 
-        def add_status_duration_lines(lines, log)
-          if log[:status]
+        def add_status_duration_lines(lines, request)
+          if request.status
             # Add status color coding
-            status_color = case log[:status]
+            status_color = case request.status
             when 200..299 then color_pair(3)  # Green
             when 300..399 then color_pair(4)  # Yellow
             when 400..599 then color_pair(6)  # Red
@@ -238,12 +207,12 @@ module LogBench
             # Build segments for mixed coloring
             segments = [
               {text: "Status: ", color: color_pair(1)},
-              {text: log[:status].to_s, color: status_color}
+              {text: request.status.to_s, color: status_color}
             ]
 
-            if log[:duration]
+            if request.duration
               segments << {text: " | Duration: ", color: color_pair(1)}
-              segments << {text: "#{log[:duration]}ms", color: nil}  # Default white color
+              segments << {text: "#{request.duration}ms", color: nil}  # Default white color
             end
 
             status_text = segments.map { |s| s[:text] }.join
@@ -255,9 +224,9 @@ module LogBench
           end
         end
 
-        def add_controller_lines(lines, log)
-          if log[:controller]
-            controller_value = "#{log[:controller]}##{log[:action]}"
+        def add_controller_lines(lines, request)
+          if request.controller
+            controller_value = "#{request.controller}##{request.action}"
             lines << {
               text: "Controller: #{controller_value}",
               color: nil,
@@ -269,8 +238,8 @@ module LogBench
           end
         end
 
-        def add_params_lines(lines, log, max_width)
-          return unless log[:params]
+        def add_params_lines(lines, request, max_width)
+          return unless request.params
 
           lines << EMPTY_LINE
           lines << {
@@ -281,7 +250,7 @@ module LogBench
             ]
           }
 
-          params_text = format_params(log[:params])
+          params_text = format_params(request.params)
           indent = "  "
 
           # Split the params text into lines that fit within the available width
@@ -343,14 +312,14 @@ module LogBench
           end
         end
 
-        def add_request_id_lines(lines, log)
-          if log[:request_id]
+        def add_request_id_lines(lines, request)
+          if request.request_id
             lines << {
-              text: "Request ID: #{log[:request_id]}",
+              text: "Request ID: #{request.request_id}",
               color: nil,
               segments: [
                 {text: "Request ID: ", color: color_pair(1)},
-                {text: log[:request_id], color: nil}  # Default white color
+                {text: request.request_id, color: nil}  # Default white color
               ]
             }
           end
@@ -364,19 +333,16 @@ module LogBench
           screen.detail_win
         end
 
-        def add_related_logs_section(lines, log)
+        def add_related_logs_section(lines, request)
           # Related Logs (grouped by request_id) - only show non-HTTP request logs
-          if log[:request_id] && log[:related_logs] && !log[:related_logs].empty?
-            related_logs = log[:related_logs]
-
-            # Sort by timestamp
-            related_logs.sort_by! { |l| l[:timestamp] || Time.at(0) }
+          if request.request_id && request.related_logs && !request.related_logs.empty?
+            related_logs = request.related_logs
 
             # Apply detail filter to related logs
             filtered_related_logs = filter_related_logs(related_logs)
 
-            # Calculate query statistics (use original logs for stats)
-            query_stats = calculate_query_stats(related_logs)
+            # Use memoized query statistics from request object
+            query_stats = build_query_stats_from_request(request)
 
             # Add query summary
             lines << EMPTY_LINE
@@ -386,30 +352,30 @@ module LogBench
             lines << {text: summary_title, color: color_pair(1) | A_BOLD}
 
             if query_stats[:total_queries] > 0
-              summary_line = "  #{query_stats[:total_queries]} queries"
+              # Build summary line with string interpolation
+              summary_parts = ["#{query_stats[:total_queries]} queries"]
+
               if query_stats[:total_time] > 0
-                summary_line += " (#{query_stats[:total_time]}ms total"
-                if query_stats[:cached_queries] > 0
-                  summary_line += ", #{query_stats[:cached_queries]} cached"
-                end
-                summary_line += ")"
+                time_part = "#{query_stats[:total_time].round(1)}ms total"
+                time_part += ", #{query_stats[:cached_queries]} cached" if query_stats[:cached_queries] > 0
+                summary_parts << "(#{time_part})"
               elsif query_stats[:cached_queries] > 0
-                summary_line += " (#{query_stats[:cached_queries]} cached)"
+                summary_parts << "(#{query_stats[:cached_queries]} cached)"
               end
-              lines << {text: summary_line, color: color_pair(2)}
 
-              # Breakdown by operation type
-              breakdown_parts = []
-              breakdown_parts << "#{query_stats[:select]} SELECT" if query_stats[:select] > 0
-              breakdown_parts << "#{query_stats[:insert]} INSERT" if query_stats[:insert] > 0
-              breakdown_parts << "#{query_stats[:update]} UPDATE" if query_stats[:update] > 0
-              breakdown_parts << "#{query_stats[:delete]} DELETE" if query_stats[:delete] > 0
-              breakdown_parts << "#{query_stats[:transaction]} TRANSACTION" if query_stats[:transaction] > 0
-              breakdown_parts << "#{query_stats[:cache]} CACHE" if query_stats[:cache] > 0
+              lines << {text: "  #{summary_parts.join(" ")}", color: color_pair(2)}
 
-              if !breakdown_parts.empty?
-                breakdown_line = "  " + breakdown_parts.join(", ")
-                lines << {text: breakdown_line, color: color_pair(2)}
+              # Breakdown by operation type - build array efficiently
+              breakdown_parts = [
+                ("#{query_stats[:select]} SELECT" if query_stats[:select] > 0),
+                ("#{query_stats[:insert]} INSERT" if query_stats[:insert] > 0),
+                ("#{query_stats[:update]} UPDATE" if query_stats[:update] > 0),
+                ("#{query_stats[:delete]} DELETE" if query_stats[:delete] > 0),
+                ("#{query_stats[:transaction]} TRANSACTION" if query_stats[:transaction] > 0)
+              ].compact
+
+              unless breakdown_parts.empty?
+                lines << {text: "  #{breakdown_parts.join(", ")}", color: color_pair(2)}
               end
             end
 
@@ -434,75 +400,54 @@ module LogBench
 
             # Use filtered logs for display
             filtered_related_logs.each do |related|
-              case related[:type]
+              case related.type
               when :sql, :cache
-                render_padded_text_with_spacing(related[:content], lines, extra_empty_lines: 0)
+                render_padded_text_with_spacing(related.content, lines, extra_empty_lines: 0)
               else
-                render_padded_text_with_spacing(related[:content], lines, extra_empty_lines: 1)
+                render_padded_text_with_spacing(related.content, lines, extra_empty_lines: 1)
               end
             end
           end
         end
 
-        def calculate_query_stats(related_logs)
+        def build_query_stats_from_request(request)
+          # Use memoized methods from request object for better performance
           stats = {
-            total_queries: 0,
-            total_time: 0.0,
+            total_queries: request.query_count,
+            total_time: request.total_query_time,
+            cached_queries: request.cached_query_count,
             select: 0,
             insert: 0,
             update: 0,
             delete: 0,
-            transaction: 0,
-            cache: 0,
-            cached_queries: 0
+            transaction: 0
           }
 
-          related_logs.each do |log|
-            next unless [:sql, :cache].include?(log[:type])
+          # Categorize by operation type for breakdown
+          request.related_logs.each do |log|
+            next unless [:sql, :cache].include?(log.type)
 
-            stats[:total_queries] += 1
-
-            # Extract timing from the content
-            if log[:timing]
-              # Parse timing like "(1.2ms)" or "1.2ms"
-              timing_str = log[:timing].gsub(/[()ms]/, "")
-              timing_value = timing_str.to_f
-              stats[:total_time] += timing_value
-            end
-
-            # Categorize by SQL operation and check for cache
-            content = log[:content].upcase
-            if content.include?("CACHE")
-              stats[:cached_queries] += 1
-              # Still categorize cached queries by their operation type
-              if content.include?("SELECT")
-                stats[:select] += 1
-              elsif content.include?("INSERT")
-                stats[:insert] += 1
-              elsif content.include?("UPDATE")
-                stats[:update] += 1
-              elsif content.include?("DELETE")
-                stats[:delete] += 1
-              elsif content.include?("TRANSACTION") || content.include?("BEGIN") || content.include?("COMMIT") || content.include?("ROLLBACK")
-                stats[:transaction] += 1
-              end
-            elsif content.include?("SELECT")
-              stats[:select] += 1
-            elsif content.include?("INSERT")
-              stats[:insert] += 1
-            elsif content.include?("UPDATE")
-              stats[:update] += 1
-            elsif content.include?("DELETE")
-              stats[:delete] += 1
-            elsif content.include?("TRANSACTION") || content.include?("BEGIN") || content.include?("COMMIT") || content.include?("ROLLBACK") || content.include?("SAVEPOINT")
-              stats[:transaction] += 1
-            end
+            categorize_sql_operation(log, stats)
           end
 
-          # Round total time to 1 decimal place
-          stats[:total_time] = stats[:total_time].round(1)
-
           stats
+        end
+
+        def categorize_sql_operation(log, stats)
+          # Use unified QueryEntry for both SQL and CACHE entries
+          return unless log.is_a?(LogBench::Log::QueryEntry)
+
+          if log.select?
+            stats[:select] += 1
+          elsif log.insert?
+            stats[:insert] += 1
+          elsif log.update?
+            stats[:update] += 1
+          elsif log.delete?
+            stats[:delete] += 1
+          elsif log.transaction? || log.begin? || log.commit? || log.rollback? || log.savepoint?
+            stats[:transaction] += 1
+          end
         end
 
         def filter_related_logs(related_logs)
@@ -513,27 +458,25 @@ module LogBench
 
           # First pass: find direct matches
           related_logs.each_with_index do |log, index|
-            if log[:content] && state.detail_filter.matches?(log[:content])
-              matched_indices.add(index)
+            next unless log.content && state.detail_filter.matches?(log.content)
 
-              # Add context lines based on log type
-              case log[:type]
-              when :sql_call_line
-                # If match is a sql_call_line, include the line below (the actual SQL query)
-                if index + 1 < related_logs.size
-                  matched_indices.add(index + 1)
-                end
-              when :sql, :cache
-                # If match is a sql or cache, include the line above (the call stack line)
-                if index > 0 && related_logs[index - 1][:type] == :sql_call_line
-                  matched_indices.add(index - 1)
-                end
+            matched_indices.add(index)
+
+            # Add context lines based on log type
+            case log.type
+            when :sql_call_line
+              # If match is a sql_call_line, include the line below (the actual SQL query)
+              matched_indices.add(index + 1) if index + 1 < related_logs.size
+            when :sql, :cache
+              # If match is a sql or cache, include the line above (the call stack line)
+              if index > 0 && related_logs[index - 1].type == :sql_call_line
+                matched_indices.add(index - 1)
               end
             end
           end
 
-          # Return logs in original order
-          matched_indices.to_a.sort.map { |index| related_logs[index] }
+          # Return logs in original order - optimize array operations
+          matched_indices.sort.map { |index| related_logs[index] }
         end
 
         def render_padded_text_with_spacing(text, lines, extra_empty_lines: 1)
@@ -561,17 +504,12 @@ module LogBench
           end
 
           # Add extra empty lines after all chunks
-          extra_empty_lines.times do
-            lines << EMPTY_LINE
-          end
-
-          text_chunks.length
+          extra_empty_lines.times { lines << EMPTY_LINE }
         end
 
         def adjust_detail_scroll(total_lines, visible_height)
           max_scroll = [total_lines - visible_height, 0].max
-          state.detail_scroll_offset = [state.detail_scroll_offset, max_scroll].min
-          state.detail_scroll_offset = [state.detail_scroll_offset, 0].max
+          state.detail_scroll_offset = state.detail_scroll_offset.clamp(0, max_scroll)
         end
       end
     end
