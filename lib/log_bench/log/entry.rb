@@ -31,15 +31,6 @@ module LogBench
         !http_request?
       end
 
-      def to_h
-        {
-          raw: raw_line,
-          timestamp: timestamp,
-          request_id: request_id,
-          type: type
-        }
-      end
-
       private
 
       attr_writer :type, :raw_line, :timestamp, :request_id, :content, :timing

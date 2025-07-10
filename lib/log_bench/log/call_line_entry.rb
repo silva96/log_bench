@@ -17,15 +17,6 @@ module LogBench
         new(raw_line)
       end
 
-      def to_h
-        super.merge(
-          content: content,
-          file_path: file_path,
-          line_number: line_number,
-          method_name: method_name
-        )
-      end
-
       private
 
       attr_accessor :file_path, :line_number, :method_name

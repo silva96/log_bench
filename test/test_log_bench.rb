@@ -43,7 +43,8 @@ class TestLogBench < Minitest::Test
     assert_equal 1, request.cache_operations.size
 
     cache_op = request.cache_operations.first
-    assert_instance_of LogBench::Log::CacheEntry, cache_op
+    assert_instance_of LogBench::Log::QueryEntry, cache_op
+    assert cache_op.cached?
     assert cache_op.hit?
     assert_equal 0.1, cache_op.duration_ms
   end
@@ -137,16 +138,6 @@ class TestLogBench < Minitest::Test
     refute_nil request.params
     assert_instance_of String, request.params
     assert_equal "{invalid json", request.params
-  end
-
-  def test_request_to_h_includes_params
-    collection = LogBench::Log::Collection.new([TestFixtures.lograge_request_with_hash_params])
-    requests = collection.requests
-    request = requests.first
-
-    hash = request.to_h
-    refute_nil hash[:params]
-    assert_equal request.params, hash[:params]
   end
 
   def test_configuration_validator_validates_rails_config

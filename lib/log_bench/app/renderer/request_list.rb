@@ -107,75 +107,70 @@ module LogBench
 
         def draw_row(request, request_index, y_position)
           log_win.setpos(y_position, 1)
+          is_selected = request_index == state.selected
 
-          if request_index == state.selected
+          if is_selected
             log_win.attron(color_pair(10) | A_DIM) do
               log_win.addstr(" " * (screen.panel_width - 4))
             end
             log_win.setpos(y_position, 1)
           end
 
-          draw_method_badge(request, request_index)
-          draw_path_column(request, request_index)
-          draw_status_column(request, request_index)
-          draw_duration_column(request, request_index)
+          draw_method_badge(request, is_selected)
+          draw_path_column(request, is_selected)
+          draw_status_column(request, is_selected)
+          draw_duration_column(request, is_selected)
         end
 
-        def draw_method_badge(request, request_index)
-          method_color = method_color_for(request.method)
+        def draw_method_badge(request, is_selected)
+          method_text = " #{request.method.ljust(7)} "
 
-          if request_index == state.selected
-            log_win.attron(color_pair(10) | A_DIM) do
-              log_win.addstr(" #{request.method.ljust(7)} ")
-            end
+          if is_selected
+            log_win.attron(color_pair(10) | A_DIM) { log_win.addstr(method_text) }
           else
-            log_win.attron(color_pair(method_color) | A_BOLD) do
-              log_win.addstr(" #{request.method.ljust(7)} ")
-            end
+            method_color = method_color_for(request.method)
+            log_win.attron(color_pair(method_color) | A_BOLD) { log_win.addstr(method_text) }
           end
         end
 
-        def draw_path_column(request, request_index)
+        def draw_path_column(request, is_selected)
           path_width = screen.panel_width - 27
           path = request.path[0, path_width] || ""
+          path_text = path.ljust(path_width)
 
-          if request_index == state.selected
-            log_win.attron(color_pair(10) | A_DIM) do
-              log_win.addstr(path.ljust(path_width))
-            end
+          if is_selected
+            log_win.attron(color_pair(10) | A_DIM) { log_win.addstr(path_text) }
           else
-            log_win.addstr(path.ljust(path_width))
+            log_win.addstr(path_text)
           end
         end
 
-        def draw_status_column(request, request_index)
+        def draw_status_column(request, is_selected)
+          return unless request.status
+
           status_col_start = screen.panel_width - 14
+          status_text = "#{request.status.to_s.rjust(3)} "
 
-          if request.status
+          log_win.setpos(log_win.cury, status_col_start)
+          if is_selected
+            log_win.attron(color_pair(10) | A_DIM) { log_win.addstr(status_text) }
+          else
             status_color = status_color_for(request.status)
-            status_text = request.status.to_s.rjust(3)
-
-            log_win.setpos(log_win.cury, status_col_start)
-            if request_index == state.selected
-              log_win.attron(color_pair(10) | A_DIM) { log_win.addstr(status_text + " ") }
-            else
-              log_win.attron(color_pair(status_color)) { log_win.addstr(status_text + " ") }
-            end
+            log_win.attron(color_pair(status_color)) { log_win.addstr(status_text) }
           end
         end
 
-        def draw_duration_column(request, request_index)
+        def draw_duration_column(request, is_selected)
+          return unless request.duration
+
           duration_col_start = screen.panel_width - 9
+          duration_text = "#{request.duration.to_i}ms".ljust(6) + " "
 
-          if request.duration
-            duration_text = "#{request.duration.to_i}ms".ljust(6)
-
-            log_win.setpos(log_win.cury, duration_col_start)
-            if request_index == state.selected
-              log_win.attron(color_pair(10) | A_DIM) { log_win.addstr(duration_text + " ") }
-            else
-              log_win.attron(A_DIM) { log_win.addstr(duration_text + " ") }
-            end
+          log_win.setpos(log_win.cury, duration_col_start)
+          if is_selected
+            log_win.attron(color_pair(10) | A_DIM) { log_win.addstr(duration_text) }
+          else
+            log_win.attron(A_DIM) { log_win.addstr(duration_text) }
           end
         end
 

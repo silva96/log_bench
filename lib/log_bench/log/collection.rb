@@ -27,14 +27,6 @@ module LogBench
         entries.select { |entry| entry.is_a?(Request) }
       end
 
-      def queries
-        entries.flat_map(&:queries)
-      end
-
-      def cache_operations
-        entries.flat_map(&:cache_operations)
-      end
-
       def filter_by_method(method)
         filtered_requests = requests.select { |req| req.method == method.upcase }
         create_collection_from_requests(filtered_requests)
