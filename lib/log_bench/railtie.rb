@@ -115,7 +115,7 @@ module LogBench
       when :full, nil
         puts LINE, FULL_INIT_MESSAGE, HELP_INSTRUCTIONS, LINE
       when :min
-        puts LINE, MIN_INIT_MESSAGE, LINE
+        puts MIN_INIT_MESSAGE
       end
     end
   end
