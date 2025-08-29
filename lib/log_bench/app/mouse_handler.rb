@@ -40,9 +40,15 @@ module LogBench
           request_index = click_to_request_index(y)
           return unless request_index
 
+          old_selected = state.selected
           max_index = state.filtered_requests.size - 1
           state.selected = [request_index, max_index].min
           state.auto_scroll = false
+
+          # Reset detail selection when switching requests
+          if old_selected != state.selected
+            state.reset_detail_selection
+          end
         elsif click_in_right_pane?(x, y)
           # Switch to right pane
           state.switch_to_right_pane unless state.right_pane_focused?

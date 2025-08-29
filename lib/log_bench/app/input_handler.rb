@@ -152,16 +152,30 @@ module LogBench
       end
 
       def handle_up_navigation
+        old_selected = state.selected if state.left_pane_focused?
         state.navigate_up
-        state.adjust_scroll_for_selection(visible_height) if state.left_pane_focused?
+        if state.left_pane_focused?
+          state.adjust_scroll_for_selection(visible_height)
+
+          # Reset detail selection when switching requests
+          if old_selected != state.selected
+            state.reset_detail_selection
+          end
+        end
       end
 
       def handle_down_navigation
         if state.left_pane_focused?
+          old_selected = state.selected
           max_index = state.filtered_requests.size - 1
           state.selected = [state.selected + 1, max_index].min
           state.auto_scroll = false
           state.adjust_scroll_for_selection(visible_height)
+
+          # Reset detail selection when switching requests
+          if old_selected != state.selected
+            state.reset_detail_selection
+          end
         else
           state.navigate_down
         end
@@ -169,69 +183,109 @@ module LogBench
 
       def handle_page_down
         if state.left_pane_focused?
+          old_selected = state.selected
           page_size = visible_height
           max_index = state.filtered_requests.size - 1
           state.selected = [state.selected + page_size, max_index].min
           state.auto_scroll = false
           state.adjust_scroll_for_selection(visible_height)
+
+          # Reset detail selection when switching requests
+          if old_selected != state.selected
+            state.reset_detail_selection
+          end
         else
-          state.detail_scroll_offset += visible_height
+          page_size = visible_height
+          state.detail_selected_entry += page_size
         end
       end
 
       def handle_page_up
         if state.left_pane_focused?
+          old_selected = state.selected
           page_size = visible_height
           state.selected = [state.selected - page_size, 0].max
           state.auto_scroll = false
           state.adjust_scroll_for_selection(visible_height)
+
+          # Reset detail selection when switching requests
+          if old_selected != state.selected
+            state.reset_detail_selection
+          end
         else
-          state.detail_scroll_offset = [state.detail_scroll_offset - visible_height, 0].max
+          page_size = visible_height
+          state.detail_selected_entry = [state.detail_selected_entry - page_size, 0].max
         end
       end
 
       def handle_half_page_down
         if state.left_pane_focused?
+          old_selected = state.selected
           half_page = visible_height / 2
           max_index = state.filtered_requests.size - 1
           state.selected = [state.selected + half_page, max_index].min
           state.auto_scroll = false
           state.adjust_scroll_for_selection(visible_height)
+
+          # Reset detail selection when switching requests
+          if old_selected != state.selected
+            state.reset_detail_selection
+          end
         else
-          state.detail_scroll_offset += visible_height / 2
+          half_page = visible_height / 2
+          state.detail_selected_entry += half_page
         end
       end
 
       def handle_half_page_up
         if state.left_pane_focused?
+          old_selected = state.selected
           half_page = visible_height / 2
           state.selected = [state.selected - half_page, 0].max
           state.auto_scroll = false
           state.adjust_scroll_for_selection(visible_height)
+
+          # Reset detail selection when switching requests
+          if old_selected != state.selected
+            state.reset_detail_selection
+          end
         else
-          state.detail_scroll_offset = [state.detail_scroll_offset - visible_height / 2, 0].max
+          half_page = visible_height / 2
+          state.detail_selected_entry = [state.detail_selected_entry - half_page, 0].max
         end
       end
 
       def handle_go_to_top
         if state.left_pane_focused?
+          old_selected = state.selected
           state.selected = 0
           state.auto_scroll = false
           state.adjust_scroll_for_selection(visible_height)
+
+          # Reset detail selection when switching requests
+          if old_selected != state.selected
+            state.reset_detail_selection
+          end
         else
-          state.detail_scroll_offset = 0
+          state.detail_selected_entry = 0
         end
       end
 
       def handle_go_to_bottom
         if state.left_pane_focused?
+          old_selected = state.selected
           max_index = state.filtered_requests.size - 1
           state.selected = [max_index, 0].max
           state.auto_scroll = false
           state.adjust_scroll_for_selection(visible_height)
+
+          # Reset detail selection when switching requests
+          if old_selected != state.selected
+            state.reset_detail_selection
+          end
         else
-          # Calculate max scroll for detail pane
-          state.detail_scroll_offset = 999  # Will be adjusted by renderer
+          # Set to a high value, will be adjusted by bounds checking
+          state.detail_selected_entry = 999999
         end
       end
 

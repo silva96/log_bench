@@ -4,7 +4,7 @@ module LogBench
   module App
     class State
       attr_reader :main_filter, :sort, :detail_filter
-      attr_accessor :requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :text_selection_mode, :update_available, :update_version
+      attr_accessor :requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :detail_selected_entry, :text_selection_mode, :update_available, :update_version
 
       def initialize
         self.requests = []
@@ -14,6 +14,7 @@ module LogBench
         self.running = true
         self.focused_pane = :left
         self.detail_scroll_offset = 0
+        self.detail_selected_entry = 0
         self.text_selection_mode = false
         self.main_filter = Filter.new
         self.detail_filter = Filter.new
@@ -65,6 +66,7 @@ module LogBench
       def clear_detail_filter
         detail_filter.clear
         self.detail_scroll_offset = 0
+        self.detail_selected_entry = 0
       end
 
       def cycle_sort_mode
@@ -153,7 +155,7 @@ module LogBench
           self.selected = [selected - 1, 0].max
           self.auto_scroll = false
         else
-          self.detail_scroll_offset = [detail_scroll_offset - 1, 0].max
+          self.detail_selected_entry = [detail_selected_entry - 1, 0].max
         end
       end
 
@@ -163,8 +165,13 @@ module LogBench
           self.selected = [selected + 1, max_index].min
           self.auto_scroll = false
         else
-          self.detail_scroll_offset += 1
+          self.detail_selected_entry += 1
         end
+      end
+
+      def reset_detail_selection
+        self.detail_selected_entry = 0
+        self.detail_scroll_offset = 0
       end
 
       def adjust_scroll_for_selection(visible_height)
@@ -188,6 +195,41 @@ module LogBench
         filtered = filtered_requests
         max_offset = [filtered.size - visible_height, 0].max
         self.scroll_offset = scroll_offset.clamp(0, max_offset)
+      end
+
+      def adjust_detail_scroll_for_entry_selection(visible_height, lines)
+        return unless right_pane_focused?
+
+        # Find all unique entry IDs, excluding separator lines
+        entry_ids = lines.reject { |line| line[:separator] }.map { |line| line[:entry_id] }.compact.uniq
+        max_entry_index = [entry_ids.size - 1, 0].max
+
+        # Ensure detail_selected_entry is within bounds
+        self.detail_selected_entry = detail_selected_entry.clamp(0, max_entry_index)
+
+        # Find the first and last line of the selected entry
+        selected_entry_id = entry_ids[detail_selected_entry]
+        return unless selected_entry_id
+
+        first_line_index = lines.find_index { |line| line[:entry_id] == selected_entry_id }
+        return unless first_line_index
+
+        # Find the last line of the selected entry (including any separator lines that follow)
+        last_line_index = first_line_index
+        (first_line_index + 1...lines.size).each do |i|
+          if lines[i][:entry_id] == selected_entry_id || lines[i][:separator]
+            last_line_index = i
+          else
+            break
+          end
+        end
+
+        # Adjust scroll to keep the entire selected entry visible
+        if first_line_index < detail_scroll_offset
+          self.detail_scroll_offset = first_line_index
+        elsif last_line_index >= detail_scroll_offset + visible_height
+          self.detail_scroll_offset = last_line_index - visible_height + 1
+        end
       end
 
       private
