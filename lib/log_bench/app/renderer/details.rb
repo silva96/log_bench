@@ -385,8 +385,9 @@ module LogBench
             # Apply detail filter to related logs
             filtered_related_logs = filter_related_logs(related_logs)
 
-            # Use memoized query statistics from request object
-            query_stats = build_query_stats_from_request(request)
+            # Use QuerySummary for consistent formatting
+            query_summary = QuerySummary.new(request)
+            query_stats = query_summary.build_stats
 
             # Add query summary
             lines << EMPTY_LINE.merge(entry_id: entry_id)
@@ -396,30 +397,13 @@ module LogBench
             lines << {text: summary_title, color: color_pair(1) | A_BOLD, entry_id: entry_id}
 
             if query_stats[:total_queries] > 0
-              # Build summary line with string interpolation
-              summary_parts = ["#{query_stats[:total_queries]} queries"]
+              # Use QuerySummary methods for consistent formatting
+              summary_line = query_summary.build_summary_line(query_stats)
+              lines << {text: "  #{summary_line}", color: color_pair(2), entry_id: entry_id}
 
-              if query_stats[:total_time] > 0
-                time_part = "#{query_stats[:total_time].round(1)}ms total"
-                time_part += ", #{query_stats[:cached_queries]} cached" if query_stats[:cached_queries] > 0
-                summary_parts << "(#{time_part})"
-              elsif query_stats[:cached_queries] > 0
-                summary_parts << "(#{query_stats[:cached_queries]} cached)"
-              end
-
-              lines << {text: "  #{summary_parts.join(" ")}", color: color_pair(2), entry_id: entry_id}
-
-              # Breakdown by operation type - build array efficiently
-              breakdown_parts = [
-                ("#{query_stats[:select]} SELECT" if query_stats[:select] > 0),
-                ("#{query_stats[:insert]} INSERT" if query_stats[:insert] > 0),
-                ("#{query_stats[:update]} UPDATE" if query_stats[:update] > 0),
-                ("#{query_stats[:delete]} DELETE" if query_stats[:delete] > 0),
-                ("#{query_stats[:transaction]} TRANSACTION" if query_stats[:transaction] > 0)
-              ].compact
-
-              unless breakdown_parts.empty?
-                lines << {text: "  #{breakdown_parts.join(", ")}", color: color_pair(2), entry_id: entry_id}
+              breakdown_line = query_summary.build_breakdown_line(query_stats)
+              unless breakdown_line.empty?
+                lines << {text: "  #{breakdown_line}", color: color_pair(2), entry_id: entry_id}
               end
             end
 
@@ -469,46 +453,6 @@ module LogBench
                 i += 1
               end
             end
-          end
-        end
-
-        def build_query_stats_from_request(request)
-          # Use memoized methods from request object for better performance
-          stats = {
-            total_queries: request.query_count,
-            total_time: request.total_query_time,
-            cached_queries: request.cached_query_count,
-            select: 0,
-            insert: 0,
-            update: 0,
-            delete: 0,
-            transaction: 0
-          }
-
-          # Categorize by operation type for breakdown
-          request.related_logs.each do |log|
-            next unless [:sql, :cache].include?(log.type)
-
-            categorize_sql_operation(log, stats)
-          end
-
-          stats
-        end
-
-        def categorize_sql_operation(log, stats)
-          # Use unified QueryEntry for both SQL and CACHE entries
-          return unless log.is_a?(LogBench::Log::QueryEntry)
-
-          if log.select?
-            stats[:select] += 1
-          elsif log.insert?
-            stats[:insert] += 1
-          elsif log.update?
-            stats[:update] += 1
-          elsif log.delete?
-            stats[:delete] += 1
-          elsif log.transaction? || log.begin? || log.commit? || log.rollback? || log.savepoint?
-            stats[:transaction] += 1
           end
         end
 

@@ -34,6 +34,14 @@ module LogBench
         content << "Request ID: #{request.request_id}" if request.request_id
         content << "Timestamp: #{request.timestamp}" if request.timestamp
         content << "Params: #{request.params}" if request.params && !request.params.empty?
+
+        # Add query summary if there are related logs
+        if request.related_logs && !request.related_logs.empty?
+          query_summary = QuerySummary.new(request).build_text_summary
+          content << ""
+          content << query_summary
+        end
+
         content << "```"
 
         Clipboard.copy(content.join("\n"))
