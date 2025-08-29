@@ -39,71 +39,58 @@ module LogBench
             [text]
           else
             chunks = []
-            remaining = text
-            active_colors = []
 
-            # Extract initial color state
-            text.scan(/\e\[[0-9;]*m/) do |ansi_code|
-              if /\e\[0m/.match?(ansi_code)
-                active_colors.clear
+            # Parse the text to extract segments with their colors
+            segments = parse_ansi_segments(text)
+
+            current_chunk = ""
+            current_chunk_length = 0
+            active_color_state = ""
+
+            segments.each do |segment|
+              if segment[:type] == :ansi
+                # Track color state
+                active_color_state = if segment[:text] == "\e[0m"
+                  ""
+                else
+                  segment[:text]
+                end
+                current_chunk += segment[:text]
               else
-                active_colors << ansi_code
+                # Text segment - check if it fits
+                text_content = segment[:text]
+
+                while text_content.length > 0
+                  remaining_space = max_width - current_chunk_length
+
+                  if text_content.length <= remaining_space
+                    # Entire text fits in current chunk
+                    current_chunk += text_content
+                    current_chunk_length += text_content.length
+                    break
+                  else
+                    # Need to split the text
+                    if remaining_space > 0
+                      # Take what fits in current chunk
+                      chunk_part = text_content[0...remaining_space]
+                      current_chunk += chunk_part
+                      text_content = text_content[remaining_space..]
+                    end
+
+                    # Finish current chunk
+                    chunks << current_chunk
+
+                    # Start new chunk with color state
+                    current_chunk = active_color_state
+                    current_chunk_length = 0
+                  end
+                end
               end
             end
 
-            while remaining.length > 0
-              clean_remaining = remaining.gsub(/\e\[[0-9;]*m/, "")
-
-              if clean_remaining.length <= max_width
-                # Last chunk
-                chunks << if active_colors.any? && !remaining.start_with?(*active_colors)
-                  active_colors.join("") + remaining
-                else
-                  remaining
-                end
-                break
-              else
-                # Find break point and preserve color state
-                break_point = max_width
-                original_pos = 0
-                clean_pos = 0
-                chunk_colors = active_colors.dup
-
-                remaining.each_char.with_index do |char, idx|
-                  if /^\e\[[0-9;]*m/.match?(remaining[idx..])
-                    # Found ANSI sequence
-                    ansi_match = remaining[idx..].match(/^(\e\[[0-9;]*m)/)
-                    ansi_code = ansi_match[1]
-
-                    if /\e\[0m/.match?(ansi_code)
-                      chunk_colors.clear
-                      active_colors.clear
-                    else
-                      chunk_colors << ansi_code unless chunk_colors.include?(ansi_code)
-                      active_colors << ansi_code unless active_colors.include?(ansi_code)
-                    end
-
-                    original_pos += ansi_code.length
-                    idx + ansi_code.length - 1
-                  else
-                    clean_pos += 1
-                    original_pos += 1
-
-                    if clean_pos >= break_point
-                      break
-                    end
-                  end
-                end
-
-                chunk_text = remaining[0...original_pos]
-                chunks << if active_colors.any? && !chunk_text.start_with?(*active_colors)
-                  active_colors.join("") + chunk_text
-                else
-                  chunk_text
-                end
-
-                remaining = remaining[original_pos..]
-              end
+            # Add final chunk if it has content
+            if current_chunk.length > 0
+              chunks << current_chunk
             end
 
             chunks
@@ -142,6 +129,40 @@ module LogBench
         private
 
         attr_accessor :screen
+
+        def parse_ansi_segments(text)
+          segments = []
+          remaining = text
+
+          while remaining.length > 0
+            # Look for next ANSI sequence
+            ansi_match = remaining.match(/^(\e\[[0-9;]*m)/)
+
+            if ansi_match
+              # Found ANSI sequence at start
+              segments << {type: :ansi, text: ansi_match[1]}
+              remaining = remaining[ansi_match[1].length..]
+            else
+              # Look for ANSI sequence anywhere in remaining text
+              next_ansi = remaining.match(/(\e\[[0-9;]*m)/)
+
+              if next_ansi
+                # Text before ANSI sequence
+                text_before = remaining[0...next_ansi.begin(1)]
+                if text_before.length > 0
+                  segments << {type: :text, text: text_before}
+                end
+                remaining = remaining[next_ansi.begin(1)..]
+              else
+                # No more ANSI sequences, rest is text
+                segments << {type: :text, text: remaining}
+                break
+              end
+            end
+          end
+
+          segments
+        end
 
         def ansi_to_curses_color(codes)
           # Convert ANSI color codes to curses color pairs
