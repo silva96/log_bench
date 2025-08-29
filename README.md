@@ -116,6 +116,8 @@ log_bench log/development.log
 - **Clear filter**: `c` to clear an active filter (press `escape` or `enter` before pressing `c` to clear)
 - **Sorting**: `s` to cycle through sort options (timestamp, duration, status)
 - **Auto-scroll**: `a` to toggle auto-scroll mode
+- **Copy**: `y` to copy the selected item to clipboard (request details or SQL query)
+- **Text selection**: `t` to toggle text selection mode (enables mouse text selection)
 - **Quit**: `q` to exit
 
 ### Filtering
@@ -141,6 +143,24 @@ Examples:
 
 In the right pane you can filter related log lines by text content to find specific SQL queries or anything else
 you want to find in the logs.
+
+### Copying Content
+
+LogBench provides multiple ways to copy content:
+
+**Smart Copy with `y` key:**
+- **Left pane**: Copies complete request details (method, path, status, duration, etc.)
+- **Right pane**: Copies the selected SQL query with its call source location
+
+**Text Selection Mode:**
+- Press `t` to toggle text selection mode
+- When enabled, you can use your mouse to select and copy text normally
+- When disabled, mouse clicks navigate the interface
+
+**Clipboard Support:**
+- **macOS**: Uses `pbcopy` (built-in)
+- **Linux**: Uses `xclip` or `xsel` (install with your package manager)
+- **Fallback**: Saves to `/tmp/logbench_copy.txt` if no clipboard tool available
 
 
 ## Log Format

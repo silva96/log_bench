@@ -84,7 +84,7 @@ module LogBench
 
           header_win.setpos(3, 2)
           header_win.attron(A_DIM) do
-            header_win.addstr("←→/hl:Switch Pane | ↑↓/jk/Click:Navigate | g/G:Top/End")
+            header_win.addstr("←→/hl:Switch Pane | ↑↓/jk/Click:Navigate | g/G:Top/End | y:Copy highlighted")
           end
         end
 

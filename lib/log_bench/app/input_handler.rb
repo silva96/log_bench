@@ -22,6 +22,7 @@ module LogBench
         self.screen = screen
         self.renderer = renderer
         self.mouse_handler = MouseHandler.new(state, screen)
+        self.copy_handler = CopyHandler.new(state, renderer)
       end
 
       def handle_input
@@ -44,7 +45,7 @@ module LogBench
 
       private
 
-      attr_accessor :state, :screen, :renderer, :mouse_handler
+      attr_accessor :state, :screen, :renderer, :mouse_handler, :copy_handler
 
       def filter_mode_active?
         state.filter_mode || state.detail_filter_mode
@@ -138,6 +139,8 @@ module LogBench
         when "t", "T"
           state.toggle_text_selection_mode
           screen.turn_text_selection_mode(state.text_selection_mode?)
+        when "y", "Y"
+          copy_handler.copy_to_clipboard
         when ESC
           handle_escape
         end

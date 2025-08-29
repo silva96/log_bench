@@ -30,6 +30,10 @@ module LogBench
           update_modal.handle_input(ch)
         end
 
+        def get_cached_detail_lines(request)
+          details.get_cached_detail_lines(request)
+        end
+
         private
 
         attr_accessor :screen, :state, :header, :scrollbar, :request_list, :ansi_renderer, :details, :update_modal

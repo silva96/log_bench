@@ -27,6 +27,20 @@ module LogBench
           draw_request_details
         end
 
+        def get_cached_detail_lines(request)
+          current_cache_key = build_cache_key(request)
+
+          # Return cached lines if cache is still valid
+          if cached_lines && cache_key == current_cache_key
+            return cached_lines
+          end
+
+          # Cache is invalid, rebuild lines
+          self.cached_lines = build_detail_lines(request)
+          self.cache_key = current_cache_key
+          cached_lines
+        end
+
         private
 
         attr_accessor :screen, :state, :scrollbar, :ansi_renderer, :cached_lines, :cache_key
@@ -124,20 +138,6 @@ module LogBench
           if lines.size > visible_height
             scrollbar.draw(detail_win, visible_height, state.detail_scroll_offset, lines.size)
           end
-        end
-
-        def get_cached_detail_lines(request)
-          current_cache_key = build_cache_key(request)
-
-          # Return cached lines if cache is still valid
-          if cached_lines && cache_key == current_cache_key
-            return cached_lines
-          end
-
-          # Cache is invalid, rebuild lines
-          self.cached_lines = build_detail_lines(request)
-          self.cache_key = current_cache_key
-          cached_lines
         end
 
         def build_cache_key(request)
