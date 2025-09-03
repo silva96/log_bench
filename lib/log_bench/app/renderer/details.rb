@@ -41,6 +41,11 @@ module LogBench
           cached_lines
         end
 
+        def invalidate_cache
+          self.cached_lines = nil
+          self.cache_key = nil
+        end
+
         private
 
         attr_accessor :screen, :state, :scrollbar, :ansi_renderer, :cached_lines, :cache_key

@@ -34,6 +34,10 @@ module LogBench
           details.get_cached_detail_lines(request)
         end
 
+        def invalidate_caches
+          details.invalidate_cache
+        end
+
         private
 
         attr_accessor :screen, :state, :header, :scrollbar, :request_list, :ansi_renderer, :details, :update_modal

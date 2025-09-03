@@ -33,6 +33,7 @@ module LogBench
       end
 
       def cleanup
+        cleanup_windows
         close_screen
       end
 
@@ -57,6 +58,17 @@ module LogBench
 
       def turn_text_selection_mode(enabled)
         enabled ? mousemask(0) : mousemask(BUTTON1_CLICKED)
+      end
+
+      def handle_resize
+        # Update terminal dimensions
+        resizeterm(0, 0)
+        clear
+        refresh
+
+        # Recreate windows with new dimensions
+        cleanup_windows
+        setup_windows
       end
 
       private
@@ -87,6 +99,12 @@ module LogBench
         init_pair(BLACK, COLOR_BLACK, COLOR_BLACK)     # Black
         init_pair(MAGENTA, COLOR_MAGENTA, COLOR_BLACK)   # Magenta
         init_pair(SELECTION_HIGHLIGHT, COLOR_BLACK, COLOR_CYAN)     # Selection highlighting
+      end
+
+      def cleanup_windows
+        header_win&.close
+        log_win&.close
+        detail_win&.close
       end
 
       def setup_windows

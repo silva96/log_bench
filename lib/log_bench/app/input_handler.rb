@@ -34,13 +34,20 @@ module LogBench
           return
         end
 
-        if ch == KEY_MOUSE
+        if ch == KEY_RESIZE
+          handle_resize
+        elsif ch == KEY_MOUSE
           mouse_handler.handle_mouse_input
         elsif filter_mode_active?
           handle_filter_input(ch)
         else
           handle_navigation_input(ch)
         end
+      end
+
+      def handle_resize
+        screen.handle_resize
+        renderer&.invalidate_caches
       end
 
       private
