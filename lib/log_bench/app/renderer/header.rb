@@ -84,7 +84,9 @@ module LogBench
 
           header_win.setpos(3, 2)
           header_win.attron(A_DIM) do
-            header_win.addstr("←→/hl:Switch Pane | ↑↓/jk/Click:Navigate | g/G:Top/End | y:Copy highlighted")
+            header_win.addstr("←→/hl:Pane | ↑↓/jk:Navigate | g/G:Top/End | y:Copy highlighted | Ctrl+L:Clear | Ctrl+R:Restore(")
+            header_win.attron(color_pair(3)) { header_win.addstr(state.can_undo_clear? ? "READY" : "N/A") }
+            header_win.addstr(")")
           end
         end
 

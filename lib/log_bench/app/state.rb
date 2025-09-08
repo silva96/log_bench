@@ -3,7 +3,7 @@
 module LogBench
   module App
     class State
-      attr_reader :main_filter, :sort, :detail_filter
+      attr_reader :main_filter, :sort, :detail_filter, :cleared_requests
       attr_accessor :requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :detail_selected_entry, :text_selection_mode, :update_available, :update_version
 
       def initialize
@@ -21,6 +21,7 @@ module LogBench
         self.sort = Sort.new
         self.update_available = false
         self.update_version = nil
+        self.cleared_requests = nil
       end
 
       def running?
@@ -58,6 +59,14 @@ module LogBench
       end
 
       def clear_filter
+        if left_pane_focused?
+          clear_requests_filter
+        else
+          clear_detail_filter
+        end
+      end
+
+      def clear_requests_filter
         main_filter.clear
         self.selected = 0
         self.scroll_offset = 0
@@ -67,6 +76,41 @@ module LogBench
         detail_filter.clear
         self.detail_scroll_offset = 0
         self.detail_selected_entry = 0
+      end
+
+      def clear_requests
+        # Store current state for undo functionality
+        self.cleared_requests = {
+          requests: requests.dup,
+          selected: selected,
+          scroll_offset: scroll_offset,
+          detail_scroll_offset: detail_scroll_offset,
+          detail_selected_entry: detail_selected_entry
+        }
+
+        self.requests = []
+        self.selected = 0
+        self.scroll_offset = 0
+        self.detail_scroll_offset = 0
+        self.detail_selected_entry = 0
+      end
+
+      def undo_clear_requests
+        return unless cleared_requests
+
+        # Append any new requests that came in after the clear to the restored requests
+        restored_requests = cleared_requests[:requests] + requests
+
+        self.requests = restored_requests
+        self.selected = cleared_requests[:selected]
+        self.scroll_offset = cleared_requests[:scroll_offset]
+        self.detail_scroll_offset = cleared_requests[:detail_scroll_offset]
+        self.detail_selected_entry = cleared_requests[:detail_selected_entry]
+        self.cleared_requests = nil
+      end
+
+      def can_undo_clear?
+        !cleared_requests.nil?
       end
 
       def cycle_sort_mode
@@ -235,7 +279,7 @@ module LogBench
       private
 
       attr_accessor :focused_pane, :running
-      attr_writer :main_filter, :detail_filter, :sort
+      attr_writer :main_filter, :detail_filter, :sort, :cleared_requests
     end
   end
 end

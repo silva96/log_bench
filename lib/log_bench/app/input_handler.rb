@@ -12,6 +12,8 @@ module LogBench
       CTRL_D = 4          # Half page down
       CTRL_U = 21         # Half page up
       CTRL_C = 3          # Quit
+      CTRL_L = 12         # Clear requests
+      CTRL_R = 18         # Undo clear requests (restore)
       ESC = 27            # Escape
 
       # UI constants
@@ -134,11 +136,7 @@ module LogBench
         when "f", "F", "/"
           state.enter_filter_mode
         when "c", "C"
-          if state.left_pane_focused?
-            state.clear_filter
-          else
-            state.clear_detail_filter
-          end
+          state.clear_filter
         when "s", "S"
           state.cycle_sort_mode
         when "q", "Q", CTRL_C
@@ -148,6 +146,10 @@ module LogBench
           screen.turn_text_selection_mode(state.text_selection_mode?)
         when "y", "Y"
           copy_handler.copy_to_clipboard
+        when CTRL_L
+          state.clear_requests
+        when CTRL_R
+          state.undo_clear_requests
         when ESC
           handle_escape
         end

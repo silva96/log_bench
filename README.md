@@ -118,6 +118,8 @@ log_bench log/development.log
 - **Auto-scroll**: `a` to toggle auto-scroll mode
 - **Copy**: `y` to copy the selected item to clipboard (request details or SQL query)
 - **Text selection**: `t` to toggle text selection mode (enables mouse text selection)
+- **Clear requests**: `Ctrl+L` to clear all requests from memory (preserves current position)
+- **Undo clear**: `Ctrl+R` to restore previously cleared requests + any new requests (restores exact position)
 - **Quit**: `q` to exit
 
 ### Filtering
