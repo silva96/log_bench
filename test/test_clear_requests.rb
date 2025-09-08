@@ -89,9 +89,9 @@ class TestClearRequests < Minitest::Test
   def test_undo_clear_requests_when_no_cleared_requests
     # Should not crash when there are no cleared requests
     refute @state.can_undo_clear?
-    
+
     @state.undo_clear_requests
-    
+
     # Should remain unchanged
     refute_empty @state.requests
     refute @state.can_undo_clear?
