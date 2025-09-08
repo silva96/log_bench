@@ -3,7 +3,8 @@
 module LogBench
   module Log
     class File
-      attr_reader :path, :last_position
+      INACTIVE_SLEEP_TIME = 0.5
+      ACTIVE_SLEEP_TIME = 0.01
 
       def initialize(path)
         self.path = find_log_file(path)
@@ -15,9 +16,29 @@ module LogBench
         collection.requests
       end
 
-      def entries
-        collection.entries
+      def watch
+        loop do
+          new_lines = read_new_lines
+
+          if new_lines.empty?
+            sleep INACTIVE_SLEEP_TIME
+            next
+          end
+
+          new_collection = Collection.new(new_lines)
+          yield new_collection unless new_collection.empty?
+
+          sleep ACTIVE_SLEEP_TIME
+        end
       end
+
+      def mark_as_read!
+        self.last_position = size
+      end
+
+      private
+
+      attr_accessor :path, :last_position
 
       def collection
         @collection ||= Collection.new(lines)
@@ -27,32 +48,6 @@ module LogBench
         @lines ||= read_lines
       end
 
-      def reload!
-        self.lines = nil
-        self.collection = nil
-        self.last_position = 0
-      end
-
-      def tail(max_lines = 1000)
-        all_lines = read_lines
-        recent_lines = all_lines.last(max_lines)
-        Collection.new(recent_lines)
-      end
-
-      def watch(&block)
-        return enum_for(:watch) unless block_given?
-
-        loop do
-          new_lines = read_new_lines
-          next if new_lines.empty?
-
-          new_collection = Collection.new(new_lines)
-          yield new_collection unless new_collection.empty?
-
-          sleep 0.5
-        end
-      end
-
       def size
         ::File.size(path)
       end
@@ -60,18 +55,6 @@ module LogBench
       def exist?
         ::File.exist?(path)
       end
-
-      def mtime
-        ::File.mtime(path)
-      end
-
-      def mark_as_read!
-        self.last_position = size
-      end
-
-      private
-
-      attr_writer :path, :last_position
 
       def read_lines
         return [] unless exist?
