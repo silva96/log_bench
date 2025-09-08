@@ -5,18 +5,17 @@ module LogBench
     class Request < Entry
       attr_reader :method, :path, :status, :duration, :controller, :action, :params, :related_logs
 
-      def initialize(raw_line)
+      def initialize(json_data)
         super
+        self.type = :http_request
         self.related_logs = []
-      end
-
-      def self.build(raw_line)
-        return unless parseable?(raw_line)
-
-        entry = Entry.new(raw_line)
-        return unless entry.http_request?
-
-        new(raw_line)
+        self.method = json_data["method"]
+        self.path = json_data["path"]
+        self.status = json_data["status"]
+        self.duration = json_data["duration"]
+        self.controller = json_data["controller"]
+        self.action = json_data["action"]
+        self.params = parse_params(json_data["params"])
       end
 
       def add_related_log(log_entry)
@@ -77,20 +76,6 @@ module LogBench
         @query_count = nil
         @total_query_time = nil
         @cached_query_count = nil
-      end
-
-      def extract_from_json(data)
-        return false unless super
-
-        self.method = data["method"]
-        self.path = data["path"]
-        self.status = data["status"]
-        self.duration = data["duration"]
-        self.controller = data["controller"]
-        self.action = data["action"]
-        self.request_id = data["request_id"]
-        self.params = parse_params(data["params"])
-        true
       end
 
       def parse_params(params_data)

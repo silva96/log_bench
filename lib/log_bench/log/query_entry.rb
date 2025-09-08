@@ -14,21 +14,11 @@ module LogBench
       SAVEPOINT = "SAVEPOINT"
       SQL_OPERATIONS = [SELECT, INSERT, UPDATE, DELETE, TRANSACTION, BEGIN_TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT].freeze
 
-      def initialize(raw_line, cached: false)
-        super(raw_line)
+      def initialize(json_data, cached: false)
+        super(json_data)
         self.type = cached ? :cache : :sql
-        @cached = cached
-      end
-
-      def self.build(raw_line)
-        return unless parseable?(raw_line)
-
-        entry = Entry.new(raw_line)
-        return unless [:sql, :cache].include?(entry.type)
-
-        # Create QueryEntry for both SQL and CACHE entries
-        cached = entry.type == :cache
-        new(raw_line, cached: cached)
+        self.timing = extract_timing
+        self.operation = extract_operation
       end
 
       def duration_ms
@@ -72,7 +62,7 @@ module LogBench
       end
 
       def cached?
-        @cached
+        type == :cache
       end
 
       def hit?
@@ -81,24 +71,7 @@ module LogBench
 
       private
 
-      attr_accessor :operation
-
-      def extract_from_json(data)
-        # Call parent method which checks for request_id
-        return false unless super
-
-        message = data["message"] || ""
-        return false unless sql_message?(data) || cache_message?(data)
-
-        self.content = message.strip
-        extract_timing_and_operation
-        true
-      end
-
-      def extract_timing_and_operation
-        self.timing = extract_timing
-        self.operation = extract_operation
-      end
+      attr_accessor :operation, :cached
 
       def extract_timing
         match = clean_content.match(/\(([0-9.]+ms)\)/)

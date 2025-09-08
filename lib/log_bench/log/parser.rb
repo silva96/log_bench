@@ -4,10 +4,13 @@ module LogBench
   module Log
     class Parser
       def self.parse_line(raw_line)
-        return unless Entry.parseable?(raw_line)
+        clean_line = raw_line.encode("UTF-8", invalid: :replace, undef: :replace, replace: "").strip
+        data = JSON.parse(clean_line)
+        return unless data.is_a?(Hash)
 
-        entry = Entry.new(raw_line)
-        build_specific_entry(entry)
+        build_specific_entry(data)
+      rescue JSON::ParserError
+        nil
       end
 
       def self.parse_lines(lines)
@@ -19,16 +22,18 @@ module LogBench
         build_requests_from_groups(grouped)
       end
 
-      def self.build_specific_entry(entry)
-        case entry.type
+      def self.build_specific_entry(data)
+        case determine_json_type(data)
         when :http_request
-          Request.build(entry.raw_line)
-        when :sql, :cache
-          QueryEntry.build(entry.raw_line)
+          Request.new(data)
+        when :sql
+          QueryEntry.new(data, cached: false)
+        when :cache
+          QueryEntry.new(data, cached: true)
         when :sql_call_line
-          CallLineEntry.build(entry.raw_line)
+          CallLineEntry.new(data)
         else
-          entry
+          Entry.new(data)
         end
       end
 
@@ -56,6 +61,34 @@ module LogBench
 
       def self.find_related_logs(entries)
         entries.reject { |entry| entry.is_a?(Request) }
+      end
+
+      def self.determine_json_type(data)
+        return :http_request if lograge_request?(data)
+        return :cache if cache_message?(data)
+        return :sql if sql_message?(data)
+        return :sql_call_line if call_stack_message?(data)
+
+        :other
+      end
+
+      def self.lograge_request?(data)
+        data["method"] && data["path"] && data["status"]
+      end
+
+      def self.sql_message?(data)
+        message = data["message"] || ""
+        %w[SELECT INSERT UPDATE DELETE TRANSACTION BEGIN COMMIT ROLLBACK SAVEPOINT].any? { |op| message.include?(op) }
+      end
+
+      def self.cache_message?(data)
+        message = data["message"] || ""
+        message.include?("CACHE")
+      end
+
+      def self.call_stack_message?(data)
+        message = data["message"] || ""
+        message.include?("↳")
       end
     end
   end
