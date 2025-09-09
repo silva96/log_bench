@@ -79,14 +79,17 @@ module LogBench
       end
 
       def clear_requests
-        # Store current state for undo functionality
-        self.cleared_requests = {
-          requests: requests.dup,
-          selected: selected,
-          scroll_offset: scroll_offset,
-          detail_scroll_offset: detail_scroll_offset,
-          detail_selected_entry: detail_selected_entry
-        }
+        if cleared_requests
+          cleared_requests[:requests] += requests
+        else
+          self.cleared_requests = {
+            requests: requests,
+            selected: selected,
+            scroll_offset: scroll_offset,
+            detail_scroll_offset: detail_scroll_offset,
+            detail_selected_entry: detail_selected_entry
+          }
+        end
 
         self.requests = []
         self.selected = 0

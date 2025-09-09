@@ -107,32 +107,36 @@ class TestClearRequests < Minitest::Test
     refute @state.can_undo_clear?
   end
 
-  def test_multiple_clears_only_stores_last_cleared_state
+  def test_multiple_clears_concatenates_all_requests
     original_requests = @state.requests.dup
     @state.selected = 1
     @state.scroll_offset = 3
 
-    # Add more requests
+    # First clear
+    @state.clear_requests
+
+    # Add new requests after first clear
     collection2 = LogBench::Log::Collection.new([TestFixtures.lograge_get_request])
-    @state.requests += collection2.requests
+    new_requests = collection2.requests
+    @state.requests = new_requests
     @state.selected = 2
     @state.scroll_offset = 6
 
-    # First clear
-    @state.clear_requests
-    first_cleared = @state.cleared_requests.dup
-
-    # Add new requests and clear again
-    @state.requests = original_requests
-    @state.selected = 4
-    @state.scroll_offset = 8
+    # Second clear - should concatenate with previously cleared requests
     @state.clear_requests
 
-    # Should only store the most recent cleared state
-    assert_equal original_requests, @state.cleared_requests[:requests]
-    assert_equal 4, @state.cleared_requests[:selected]
-    assert_equal 8, @state.cleared_requests[:scroll_offset]
-    refute_equal first_cleared, @state.cleared_requests
+    # Should store all requests: original + new from after first clear
+    expected_requests = original_requests + new_requests
+    assert_equal expected_requests, @state.cleared_requests[:requests]
+    assert_equal expected_requests.size, @state.cleared_requests[:requests].size
+
+    # Should store the most recent state (from second clear)
+    assert_equal 2, @state.cleared_requests[:selected]
+    assert_equal 6, @state.cleared_requests[:scroll_offset]
+
+    # Verify the order: original requests first, then new ones
+    assert_equal original_requests.first.request_id, @state.cleared_requests[:requests].first.request_id
+    assert_equal new_requests.first.request_id, @state.cleared_requests[:requests].last.request_id
   end
 
   def test_undo_clear_preserves_stored_state_exactly
@@ -204,5 +208,32 @@ class TestClearRequests < Minitest::Test
     # Should just restore original requests
     assert_equal original_requests, @state.requests
     assert_equal 2, @state.selected
+  end
+
+  def test_three_consecutive_clears_preserves_all_requests
+    # Start with initial requests
+    initial_requests = @state.requests.dup
+    @state.clear_requests
+
+    # Add batch 1 and clear again
+    collection1 = LogBench::Log::Collection.new([TestFixtures.lograge_get_request])
+    batch1_requests = collection1.requests
+    @state.requests = batch1_requests
+    @state.clear_requests
+
+    # Add batch 2 and clear again
+    collection2 = LogBench::Log::Collection.new([TestFixtures.lograge_request_with_hash_params])
+    batch2_requests = collection2.requests
+    @state.requests = batch2_requests
+    @state.clear_requests
+
+    # Should have all three batches stored
+    expected_requests = initial_requests + batch1_requests + batch2_requests
+    assert_equal expected_requests, @state.cleared_requests[:requests]
+    assert_equal expected_requests.size, @state.cleared_requests[:requests].size
+
+    # Verify order: initial, then batch1, then batch2
+    assert_equal initial_requests.first.request_id, @state.cleared_requests[:requests].first.request_id
+    assert_equal batch2_requests.first.request_id, @state.cleared_requests[:requests].last.request_id
   end
 end
