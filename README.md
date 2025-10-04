@@ -64,7 +64,7 @@ if defined?(LogBench)
     # config.show_init_message = :min # :full, :min, or :none (default: :full)
   
     # Specify which controllers to inject request_id tracking
-    # config.base_controller_classes = %w[CustomBaseController] # (default: %w[ApplicationController, ActionController::Base])
+    # config.base_controller_classes = %w[CustomBaseController] # (default: %w[ApplicationController ActionController::Base])
   end
 end
 ```
