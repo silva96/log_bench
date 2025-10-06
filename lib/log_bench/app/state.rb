@@ -4,10 +4,11 @@ module LogBench
   module App
     class State
       attr_reader :main_filter, :sort, :detail_filter, :cleared_requests
-      attr_accessor :requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :detail_selected_entry, :text_selection_mode, :update_available, :update_version
+      attr_accessor :requests, :orphan_requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :detail_selected_entry, :text_selection_mode, :update_available, :update_version
 
       def initialize
         self.requests = []
+        self.orphan_requests = []
         self.selected = 0
         self.scroll_offset = 0
         self.auto_scroll = true

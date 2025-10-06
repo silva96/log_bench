@@ -3,10 +3,10 @@
 module LogBench
   module Log
     class Request < Entry
-      attr_reader :method, :path, :status, :duration, :controller, :action, :params, :related_logs
+      attr_reader :method, :path, :status, :duration, :controller, :action, :params, :related_logs, :orphan
 
-      def initialize(json_data)
-        super
+      def initialize(json_data, orphan: false)
+        super(json_data)
         self.type = :http_request
         self.related_logs = []
         self.method = json_data["method"]
@@ -16,6 +16,11 @@ module LogBench
         self.controller = json_data["controller"]
         self.action = json_data["action"]
         self.params = parse_params(json_data["params"])
+        self.orphan = orphan
+      end
+
+      def self.new_orphan(request_id)
+        new({"request_id" => request_id}, orphan: true)
       end
 
       def add_related_log(log_entry)
@@ -63,7 +68,7 @@ module LogBench
 
       private
 
-      attr_writer :method, :path, :status, :duration, :controller, :action, :params
+      attr_writer :method, :path, :status, :duration, :controller, :action, :params, :orphan
 
       def related_logs=(value)
         @related_logs = value

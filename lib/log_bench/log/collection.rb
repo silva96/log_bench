@@ -11,10 +11,6 @@ module LogBench
         self.entries = parse_input(input)
       end
 
-      def each(&block)
-        entries.each(&block)
-      end
-
       def size
         entries.size
       end
@@ -24,7 +20,11 @@ module LogBench
       end
 
       def requests
-        entries.select { |entry| entry.is_a?(Request) }
+        entries.select { |entry| entry.is_a?(Request) && !entry.orphan }
+      end
+
+      def orphan_requests
+        entries.select { |entry| entry.is_a?(Request) && entry.orphan }
       end
 
       def filter_by_method(method)
@@ -57,10 +57,6 @@ module LogBench
         create_collection_from_requests(sorted_requests)
       end
 
-      def to_a
-        entries
-      end
-
       private
 
       def create_collection_from_requests(requests)
@@ -73,6 +69,10 @@ module LogBench
         lines = normalize_input(input)
         parsed_entries = Parser.parse_lines(lines)
         Parser.group_by_request(parsed_entries)
+      rescue StandardError => e
+        LogBench.logger.error("LogBench: Error parsing entries: #{e.message}")
+        LogBench.logger.debug("LogBench: Error details: #{e.backtrace.join("\n")}")
+        []
       end
 
       def normalize_input(input)

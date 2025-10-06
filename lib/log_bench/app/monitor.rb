@@ -32,6 +32,7 @@ module LogBench
           begin
             log_file.watch do |new_collection|
               add_new_requests(new_collection.requests)
+              add_orphan_requests(new_collection.orphan_requests)
             end
           rescue
             sleep 1
@@ -44,6 +45,23 @@ module LogBench
 
         state.requests.concat(new_requests)
         keep_recent_requests
+      end
+
+      def add_orphan_requests(orphan_requests)
+        state.orphan_requests.concat(orphan_requests)
+        return if state.orphan_requests.empty?
+
+        # Try to attach orphaned logs to existing requests and remove them if successful
+        state.orphan_requests.reject! do |orphan_request|
+          request = state.requests.find { |req| req.request_id == orphan_request.request_id }
+
+          if request
+            orphan_request.related_logs.each { |log| request.add_related_log(log) }
+            true # Remove this orphan request from the list
+          else
+            false # Keep this orphan request for later
+          end
+        end
       end
 
       def keep_recent_requests

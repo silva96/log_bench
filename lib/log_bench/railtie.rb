@@ -48,6 +48,7 @@ module LogBench
       if LogBench.configuration.enabled
         LogBench::Railtie.setup_rails_logger_final
         LogBench::Railtie.setup_current_attributes
+        LogBench::Railtie.setup_sidekiq_middleware
         LogBench::Railtie.validate_configuration!
       end
     end
@@ -94,6 +95,12 @@ module LogBench
             LogBench::Current.request_id = request.request_id if defined?(LogBench::Current)
           end
         end
+      end
+
+      def setup_sidekiq_middleware
+        # Use Sidekiq's built-in CurrentAttributes middleware
+        require "sidekiq/middleware/current_attributes"
+        Sidekiq::CurrentAttributes.persist("LogBench::Current")
       end
 
       # Validate that LogBench setup worked correctly

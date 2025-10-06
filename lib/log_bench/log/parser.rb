@@ -43,8 +43,7 @@ module LogBench
         grouped.each do |request_id, entries|
           next unless request_id
 
-          request = find_request_entry(entries)
-          next unless request
+          request = find_request_entry(entries) || Request.new_orphan(request_id)
 
           related_logs = find_related_logs(entries)
           related_logs.each { |log| request.add_related_log(log) }
