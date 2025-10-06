@@ -69,10 +69,6 @@ module LogBench
         lines = normalize_input(input)
         parsed_entries = Parser.parse_lines(lines)
         Parser.group_by_request(parsed_entries)
-      rescue StandardError => e
-        LogBench.logger.error("LogBench: Error parsing entries: #{e.message}")
-        LogBench.logger.debug("LogBench: Error details: #{e.backtrace.join("\n")}")
-        []
       end
 
       def normalize_input(input)

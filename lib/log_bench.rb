@@ -32,7 +32,7 @@ module LogBench
       logger = Logger.new("logbench_log.log")
       logger.level = Logger::DEBUG
       logger.formatter = proc do |severity, datetime, _progname, msg|
-        "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}] #{severity}: #{msg}\n"
+        "[#{datetime.strftime("%Y-%m-%d %H:%M:%S")}] #{severity}: #{msg}\n"
       end
       logger
     end
