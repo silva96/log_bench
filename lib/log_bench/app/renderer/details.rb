@@ -494,15 +494,22 @@ module LogBench
           # Helper function that renders text with padding, breaking long text into multiple lines
           content_width = detail_win.maxx - 8  # Account for padding (4 spaces each side)
 
+          # Add job identification prefix if available
+          display_text = text
+          if original_entry && original_entry.job_class && original_entry.job_id
+            job_prefix = "[#{original_entry.job_class}##{original_entry.job_id}] "
+            display_text = job_prefix + text
+          end
+
           # Automatically detect if text contains ANSI codes
-          has_ansi = ansi_renderer.has_ansi_codes?(text)
+          has_ansi = ansi_renderer.has_ansi_codes?(display_text)
 
           text_chunks = if has_ansi
             # For ANSI text, break it into properly sized chunks
-            ansi_renderer.wrap_ansi_text(text, content_width)
+            ansi_renderer.wrap_ansi_text(display_text, content_width)
           else
             # For plain text, break it into chunks
-            ansi_renderer.wrap_plain_text(text, content_width)
+            ansi_renderer.wrap_plain_text(display_text, content_width)
           end
 
           # Render each chunk as a separate line with padding

@@ -102,6 +102,19 @@ module LogBench
 
         require "sidekiq/middleware/current_attributes"
         Sidekiq::CurrentAttributes.persist("LogBench::Current")
+        
+        # Add our custom middleware to capture job information
+        Sidekiq.configure_server do |config|
+          config.server_middleware do |chain|
+            chain.add LogBench::SidekiqMiddleware
+          end
+        end
+        
+        Sidekiq.configure_client do |config|
+          config.client_middleware do |chain|
+            chain.add LogBench::SidekiqMiddleware
+          end
+        end
       end
 
       # Validate that LogBench setup worked correctly

@@ -24,6 +24,8 @@ module LogBench
       tags = current_tags
       entry = parse_lograge_message(entry[:message]) if lograge_message?(entry)
       request_id = current_request_id
+      job_id = current_job_id
+      job_class = current_job_class
 
       base_entry = {
         level: severity,
@@ -32,6 +34,10 @@ module LogBench
         request_id: request_id,
         progname: progname
       }
+
+      # Add job information if present
+      base_entry[:job_id] = job_id if job_id
+      base_entry[:job_class] = job_class if job_class
 
       # Add tags if present
       base_entry[:tags] = tags if tags.any?
@@ -87,6 +93,38 @@ module LogBench
       end
 
       request_id
+    end
+
+    def current_job_id
+      job_id = nil
+
+      if defined?(LogBench::Current) && LogBench::Current.respond_to?(:job_id)
+        job_id = LogBench::Current.job_id
+      elsif defined?(Current) && Current.respond_to?(:job_id)
+        job_id = Current.job_id
+      elsif defined?(RequestStore) && RequestStore.exist?(:job_id)
+        job_id = RequestStore.read(:job_id)
+      elsif Thread.current[:job_id]
+        job_id = Thread.current[:job_id]
+      end
+
+      job_id
+    end
+
+    def current_job_class
+      job_class = nil
+
+      if defined?(LogBench::Current) && LogBench::Current.respond_to?(:job_class)
+        job_class = LogBench::Current.job_class
+      elsif defined?(Current) && Current.respond_to?(:job_class)
+        job_class = Current.job_class
+      elsif defined?(RequestStore) && RequestStore.exist?(:job_class)
+        job_class = RequestStore.read(:job_class)
+      elsif Thread.current[:job_class]
+        job_class = Thread.current[:job_class]
+      end
+
+      job_class
     end
   end
 end

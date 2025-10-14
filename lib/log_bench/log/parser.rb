@@ -32,6 +32,8 @@ module LogBench
           QueryEntry.new(data, cached: true)
         when :sql_call_line
           CallLineEntry.new(data)
+        when :job_enqueue
+          JobEnqueueEntry.new(data)
         else
           Entry.new(data)
         end
@@ -67,6 +69,7 @@ module LogBench
         return :cache if cache_message?(data)
         return :sql if sql_message?(data)
         return :sql_call_line if call_stack_message?(data)
+        return :job_enqueue if job_enqueue_message?(data)
 
         :other
       end
@@ -88,6 +91,11 @@ module LogBench
       def self.call_stack_message?(data)
         message = data["message"] || ""
         message.include?("↳")
+      end
+
+      def self.job_enqueue_message?(data)
+        message = data["message"] || ""
+        message.include?("was enqueued") || message.include?("Enqueued")
       end
     end
   end
