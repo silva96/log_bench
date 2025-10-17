@@ -30,7 +30,7 @@ module LogBench
           break unless running
 
           begin
-            log_file.watch(state.job_ids_map) do |new_collection|
+            log_file.watch do |new_collection|
               add_new_requests(new_collection.requests)
               add_orphan_requests(new_collection.orphan_requests)
             end
@@ -42,11 +42,6 @@ module LogBench
 
       def add_new_requests(new_requests)
         return if new_requests.empty?
-
-        # Register job enqueues in the state's job_ids_map
-        new_requests.each do |request|
-          register_job_enqueues(request)
-        end
 
         state.requests.concat(new_requests)
         keep_recent_requests
@@ -72,15 +67,6 @@ module LogBench
       def keep_recent_requests
         # Keep only the last 1000 requests to prevent memory issues
         state.requests = state.requests.last(1000) if state.requests.size > 1000
-      end
-
-      def register_job_enqueues(request)
-        # Look for job enqueue entries in the request's related logs
-        request.related_logs.each do |log|
-          next unless log.is_a?(LogBench::Log::JobEnqueueEntry)
-
-          state.register_job_enqueue(log.job_id, request.request_id)
-        end
       end
     end
   end

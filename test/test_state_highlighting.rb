@@ -4,7 +4,7 @@ require "test_helper"
 
 class TestStateHighlighting < Minitest::Test
   def setup
-    @state = LogBench::App::State.new
+    @state = test_state
 
     # Create test requests
     collection = LogBench::Log::Collection.new(TestFixtures.request_with_sql)

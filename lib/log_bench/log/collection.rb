@@ -7,8 +7,8 @@ module LogBench
 
       attr_accessor :entries
 
-      def initialize(input, job_ids_map = {})
-        self.job_ids_map = job_ids_map
+      def initialize(input)
+        self.parsed_entries = nil
         self.entries = parse_input(input)
       end
 
@@ -60,18 +60,18 @@ module LogBench
 
       private
 
-      attr_accessor :job_ids_map
+      attr_accessor :parsed_entries
 
       def create_collection_from_requests(requests)
-        new_collection = self.class.new([], job_ids_map)
+        new_collection = self.class.new([])
         new_collection.entries = requests
         new_collection
       end
 
       def parse_input(input)
         lines = normalize_input(input)
-        parsed_entries = Parser.parse_lines(lines)
-        Parser.group_by_request(parsed_entries, job_ids_map)
+        self.parsed_entries = Parser.parse_lines(lines)
+        Parser.group_by_request(parsed_entries)
       end
 
       def normalize_input(input)

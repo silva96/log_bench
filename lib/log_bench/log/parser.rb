@@ -4,24 +4,26 @@ module LogBench
   module Log
     class Parser
       extend JobPrefixFormatter
+
       def self.parse_line(raw_line)
         clean_line = raw_line.encode("UTF-8", invalid: :replace, undef: :replace, replace: "").strip
         data = JSON.parse(clean_line)
         return unless data.is_a?(Hash)
 
-        build_specific_entry(data)
+        entry = build_specific_entry(data)
+        register_job_enqueue(entry)
+        enrich_job_entry(entry)
+        entry
       rescue JSON::ParserError
         nil
       end
 
-      def self.parse_lines(lines, job_ids_map = {})
+      def self.parse_lines(lines)
         lines.map { |line| parse_line(line) }.compact
       end
 
-      def self.group_by_request(entries, job_ids_map = {})
-        # Enrich entries with request_ids from job mapping BEFORE grouping
-        enriched_entries = enrich_entries_with_request_ids(entries, job_ids_map)
-        grouped = enriched_entries.group_by(&:request_id)
+      def self.group_by_request(entries)
+        grouped = entries.group_by(&:request_id)
         build_requests_from_groups(grouped)
       end
 
@@ -106,47 +108,42 @@ module LogBench
         match[1] if match
       end
 
-      def self.extract_job_id_from_tags(tags)
-        return nil unless tags.is_a?(Array) && tags.size >= 3
+      # Register job enqueue in State
+      def self.register_job_enqueue(entry)
+        return unless entry.is_a?(JobEnqueueEntry)
+        return unless defined?(App::State)
 
-        # ActiveJob tags format: ["ActiveJob", "JobClassName", "job-id"]
-        if tags[0] == "ActiveJob" && tags[2]
-          tags[2]
-        end
+        App::State.instance.register_job_enqueue(entry.job_id, entry.request_id)
       end
 
-      def self.enrich_entries_with_request_ids(entries, job_ids_map)
-        entries.each do |entry|
-          next unless entry.respond_to?(:json_data)
+      # Enrich job execution logs with request_id and colored prefix
+      def self.enrich_job_entry(entry)
+        return unless entry.respond_to?(:json_data)
 
-          tags = entry.json_data["tags"]
-          job_id, job_class = extract_job_info_from_tags(tags)
-          next unless job_id
+        tags = entry.json_data["tags"]
+        job_id, job_class = extract_job_info_from_tags(tags)
+        return unless job_id
 
-          # Add colored job prefix if message doesn't already have one
-          # (This works for both old logs and new logs)
-          add_job_prefix_to_entry(entry, job_id, job_class)
-
-          # Enrich with request_id if entry doesn't have one
-          if !entry.request_id && !job_ids_map.empty?
-            request_id = job_ids_map[job_id]
-            entry.instance_variable_set(:@request_id, request_id) if request_id
-          end
-        end
-
-        entries
+        add_job_prefix_to_entry(entry, job_id, job_class)
+        add_request_id_to_entry(entry, job_id)
       end
 
+      # Add colored job prefix to entry content
       def self.add_job_prefix_to_entry(entry, job_id, job_class)
-        # Check if message already has a job prefix (colored or not)
         return if entry.content.match?(/\[[\w:]+#[^\]]+\]/)
 
-        # Build colored job prefix
         job_prefix = build_colored_job_prefix(job_class, job_id)
         new_content = "#{job_prefix} #{entry.content}"
-
-        # Update the entry's content
         entry.instance_variable_set(:@content, new_content)
+      end
+
+      # Add request_id to entry from State
+      def self.add_request_id_to_entry(entry, job_id)
+        return if entry.request_id
+        return unless defined?(App::State)
+
+        request_id = App::State.instance.request_id_for_job(job_id)
+        entry.instance_variable_set(:@request_id, request_id) if request_id
       end
     end
   end

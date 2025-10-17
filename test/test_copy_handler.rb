@@ -4,7 +4,7 @@ require "test_helper"
 
 class TestCopyHandler < Minitest::Test
   def setup
-    @state = LogBench::App::State.new
+    @state = test_state
     @renderer = MockRenderer.new
     @copy_handler = LogBench::App::CopyHandler.new(@state, @renderer)
 

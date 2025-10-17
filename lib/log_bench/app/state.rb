@@ -1,12 +1,20 @@
 # frozen_string_literal: true
 
+require "singleton"
+
 module LogBench
   module App
     class State
-      attr_reader :main_filter, :sort, :detail_filter, :cleared_requests, :job_ids_map
+      include Singleton
+
+      attr_reader :main_filter, :sort, :detail_filter, :cleared_requests
       attr_accessor :requests, :orphan_requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :detail_selected_entry, :text_selection_mode, :update_available, :update_version
 
       def initialize
+        reset!
+      end
+
+      def reset!
         self.requests = []
         self.orphan_requests = []
         self.selected = 0
@@ -291,8 +299,8 @@ module LogBench
 
       private
 
-      attr_accessor :focused_pane, :running
-      attr_writer :main_filter, :detail_filter, :sort, :cleared_requests, :job_ids_map
+      attr_accessor :focused_pane, :running, :job_ids_map
+      attr_writer :main_filter, :detail_filter, :sort, :cleared_requests
     end
   end
 end

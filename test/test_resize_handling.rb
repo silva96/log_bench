@@ -5,7 +5,7 @@ require "test_helper"
 class TestResizeHandling < Minitest::Test
   def setup
     @screen = LogBench::App::Screen.new
-    @state = LogBench::App::State.new
+    @state = test_state
     @renderer = LogBench::App::Renderer::Main.new(@screen, @state, "test.log")
     @input_handler = LogBench::App::InputHandler.new(@state, @screen, @renderer)
   end

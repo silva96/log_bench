@@ -19,7 +19,7 @@ module LogBench
 
       def initialize(log_file_path = "log/development.log")
         self.log_file_path = find_log_file(log_file_path)
-        self.state = State.new
+        self.state = State.instance
         validate_log_file!
       end
 
@@ -68,14 +68,7 @@ module LogBench
 
       def load_initial_data
         self.log_file = Log::File.new(log_file_path)
-
-        # First pass: Load requests and build job_ids_map
         state.requests = log_file.requests
-        register_initial_job_enqueues
-
-        # Second pass: Re-parse with the populated job_ids_map to enrich job logs
-        state.requests = log_file.requests_with_job_mapping(state.job_ids_map)
-
         log_file.mark_as_read!
       end
 
@@ -106,16 +99,6 @@ module LogBench
       def cleanup
         monitor&.stop
         screen&.cleanup
-      end
-
-      def register_initial_job_enqueues
-        state.requests.each do |request|
-          request.related_logs.each do |log|
-            next unless log.is_a?(Log::JobEnqueueEntry)
-
-            state.register_job_enqueue(log.job_id, request.request_id)
-          end
-        end
       end
     end
   end

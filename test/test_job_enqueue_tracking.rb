@@ -24,7 +24,7 @@ class TestJobEnqueueTracking < Minitest::Test
   end
 
   def test_state_registers_job_enqueue
-    state = LogBench::App::State.new
+    state = test_state
 
     # Register a job enqueue
     job_id = "8afaa702-7b0d-4d20-91ad-65bbf78ee0c8"
@@ -37,7 +37,7 @@ class TestJobEnqueueTracking < Minitest::Test
   end
 
   def test_monitor_registers_job_enqueues
-    state = LogBench::App::State.new
+    state = test_state
 
     # Create a request with a job enqueue entry (matching request_id)
     request_log = '{"method":"GET","path":"/users","status":200,"duration":45.2,"controller":"UsersController","action":"index","request_id":"d72f06fa-71f1-4fb4-a27f-d9b36fe17593","timestamp":"2025-01-01T10:00:00Z"}'
@@ -91,7 +91,7 @@ class TestJobEnqueueTracking < Minitest::Test
     # 3. Job ID is mapped to request ID
     # 4. Later, we can look up which request enqueued which job
 
-    state = LogBench::App::State.new
+    state = test_state
 
     # Step 1: HTTP request arrives and enqueues a job
     request_id = "req-abc-123"
@@ -128,14 +128,15 @@ class TestJobEnqueueTracking < Minitest::Test
     request_id = "d72f06fa-71f1-4fb4-a27f-d9b36fe17593"
     job_id = "8afaa702-7b0d-4d20-91ad-65bbf78ee0c8"
 
-    # First, build the mapping
-    job_ids_map = {job_id => request_id}
+    # First, build the mapping in State
+    state = test_state
+    state.register_job_enqueue(job_id, request_id)
 
     # Now parse a job log that has NO request_id, only tags with job_id
     job_log = %({"message":"[TestJob##{job_id}] TestJob#perform at 2025-10-17 11:02:51 -0300","level":"INFO","timestamp":"2025-10-17T14:02:51.993Z","time":1760709771.993279,"tags":["ActiveJob","TestJob","#{job_id}"]})
 
-    # Parse with the job_ids_map
-    collection = LogBench::Log::Collection.new([job_log], job_ids_map)
+    # Parse (will use State singleton to enrich)
+    collection = LogBench::Log::Collection.new([job_log])
 
     # Should create an orphan request with the mapped request_id
     assert_equal 1, collection.orphan_requests.size
@@ -180,27 +181,15 @@ class TestJobEnqueueTracking < Minitest::Test
 
     all_logs = [request_log, enqueue_log, job_log_1, job_log_2, job_log_3]
 
-    # First pass: Parse without job_ids_map (simulates initial load)
-    collection_pass1 = LogBench::Log::Collection.new(all_logs)
+    # Single pass: Parse and enrich (State singleton handles the mapping)
+    state = test_state
+    collection = LogBench::Log::Collection.new(all_logs)
 
-    # Build the job_ids_map from the first pass
-    job_ids_map = {}
-    collection_pass1.requests.each do |request|
-      request.related_logs.each do |log|
-        if log.is_a?(LogBench::Log::JobEnqueueEntry)
-          job_ids_map[log.job_id] = request.request_id
-        end
-      end
-    end
-
-    # Verify the mapping was built
-    assert_equal request_id, job_ids_map[job_id]
-
-    # Second pass: Re-parse with the job_ids_map (simulates the fix)
-    collection_pass2 = LogBench::Log::Collection.new(all_logs, job_ids_map)
+    # Verify the mapping was built in State
+    assert_equal request_id, state.request_id_for_job(job_id)
 
     # Now we should have the request with ALL logs grouped together
-    requests = collection_pass2.requests
+    requests = collection.requests
     assert_equal 1, requests.size
 
     request = requests.first
