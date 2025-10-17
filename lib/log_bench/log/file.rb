@@ -16,7 +16,11 @@ module LogBench
         collection.requests
       end
 
-      def watch
+      def requests_with_job_mapping(job_ids_map)
+        Collection.new(lines, job_ids_map).requests
+      end
+
+      def watch(job_ids_map = {})
         loop do
           new_lines = read_new_lines
 
@@ -25,7 +29,7 @@ module LogBench
             next
           end
 
-          new_collection = Collection.new(new_lines)
+          new_collection = Collection.new(new_lines, job_ids_map)
           yield new_collection unless new_collection.empty?
 
           sleep ACTIVE_SLEEP_TIME

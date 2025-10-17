@@ -3,7 +3,7 @@
 module LogBench
   module App
     class State
-      attr_reader :main_filter, :sort, :detail_filter, :cleared_requests
+      attr_reader :main_filter, :sort, :detail_filter, :cleared_requests, :job_ids_map
       attr_accessor :requests, :orphan_requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :detail_selected_entry, :text_selection_mode, :update_available, :update_version
 
       def initialize
@@ -23,6 +23,7 @@ module LogBench
         self.update_available = false
         self.update_version = nil
         self.cleared_requests = nil
+        self.job_ids_map = {}
       end
 
       def running?
@@ -280,10 +281,18 @@ module LogBench
         end
       end
 
+      def register_job_enqueue(job_id, request_id)
+        job_ids_map[job_id] = request_id
+      end
+
+      def request_id_for_job(job_id)
+        job_ids_map[job_id]
+      end
+
       private
 
       attr_accessor :focused_pane, :running
-      attr_writer :main_filter, :detail_filter, :sort, :cleared_requests
+      attr_writer :main_filter, :detail_filter, :sort, :cleared_requests, :job_ids_map
     end
   end
 end
