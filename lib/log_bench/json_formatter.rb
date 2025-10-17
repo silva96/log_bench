@@ -27,11 +27,11 @@ module LogBench
       request_id = current_request_id
 
       # Get job info from Current attributes (direct Sidekiq jobs) or tags (ActiveJob)
-      jid, job_class = get_job_info(tags)
+      job_id, job_class = get_job_info(tags)
 
       # Add colored job prefix to message if we're in a job context
-      if jid && job_class && entry[:message]
-        job_prefix = build_colored_job_prefix(job_class, jid)
+      if job_id && job_class && entry[:message]
+        job_prefix = build_colored_job_prefix(job_class, job_id)
         entry[:message] = "#{job_prefix} #{entry[:message]}"
       end
 
