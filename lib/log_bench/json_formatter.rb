@@ -9,6 +9,16 @@ module LogBench
   class JsonFormatter < ::Logger::Formatter
     include ActiveSupport::TaggedLogging::Formatter
 
+    # Job color palette - using standard colors only (no bright colors)
+    JOB_COLORS = [
+      31, # Red
+      32, # Green
+      33, # Yellow
+      34, # Blue
+      35, # Magenta
+      36  # Cyan
+    ].freeze
+
     def call(severity, timestamp, progname, message)
       log_entry = build_log_entry(severity, timestamp, progname, message)
       log_entry.to_json + "\n"
@@ -24,6 +34,15 @@ module LogBench
       tags = current_tags
       entry = parse_lograge_message(entry[:message]) if lograge_message?(entry)
       request_id = current_request_id
+
+      # Get job info from Current attributes (direct Sidekiq jobs) or tags (ActiveJob)
+      jid, job_class = get_job_info(tags)
+
+      # Add colored job prefix to message if we're in a job context
+      if jid && job_class && entry[:message]
+        job_prefix = build_colored_job_prefix(job_class, jid)
+        entry[:message] = "#{job_prefix} #{entry[:message]}"
+      end
 
       base_entry = {
         level: severity,
@@ -74,19 +93,79 @@ module LogBench
     end
 
     def current_request_id
-      request_id = nil
+      get_current_attribute(:request_id)
+    end
 
-      if defined?(LogBench::Current) && LogBench::Current.respond_to?(:request_id)
-        request_id = LogBench::Current.request_id
-      elsif defined?(Current) && Current.respond_to?(:request_id)
-        request_id = Current.request_id
-      elsif defined?(RequestStore) && RequestStore.exist?(:request_id)
-        request_id = RequestStore.read(:request_id)
-      elsif Thread.current[:request_id]
-        request_id = Thread.current[:request_id]
+    def current_jid
+      get_current_attribute(:jid)
+    end
+
+    def current_job_class
+      get_current_attribute(:job_class)
+    end
+
+    # Generic method to get current attributes from various storage mechanisms
+    def get_current_attribute(attribute_name)
+      # Try LogBench::Current first (preferred)
+      if defined?(LogBench::Current) && LogBench::Current.respond_to?(attribute_name)
+        return LogBench::Current.public_send(attribute_name)
       end
 
-      request_id
+      # Try Current (fallback for apps that define their own Current)
+      if defined?(Current) && Current.respond_to?(attribute_name)
+        return Current.public_send(attribute_name)
+      end
+
+      # Try RequestStore (for apps using request_store gem)
+      if defined?(RequestStore) && RequestStore.exist?(attribute_name)
+        return RequestStore.read(attribute_name)
+      end
+
+      # Try Thread local storage (last resort)
+      Thread.current[attribute_name]
+    end
+
+    # Get job info from Current attributes (direct Sidekiq jobs) or tags (ActiveJob)
+    def get_job_info(tags)
+      # First try Current attributes (for direct Sidekiq jobs)
+      current_jid = get_current_attribute(:jid)
+      current_job_class = get_current_attribute(:job_class)
+
+      if current_jid && current_job_class
+        return [current_jid, current_job_class]
+      end
+
+      # Fallback to tags (for ActiveJob)
+      extract_job_info_from_tags(tags)
+    end
+
+    # Extract job info from ActiveJob tags
+    def extract_job_info_from_tags(tags)
+      return [nil, nil] unless tags.is_a?(Array) && tags.size >= 3
+
+      # Check if this looks like ActiveJob tags: ["ActiveJob", "JobClassName", "jid"]
+      if tags[0] == "ActiveJob" && tags[1] && tags[2]
+        jid = tags[2]
+        job_class = tags[1]
+        return [jid, job_class]
+      end
+
+      [nil, nil]
+    end
+
+    # Build colored job prefix using ANSI color codes
+    def build_colored_job_prefix(job_class, jid)
+      # Pick a color based on the job ID for visual differentiation
+      color_code = pick_job_color(jid)
+      "\u001b[1m\u001b[#{color_code}m[#{job_class}##{jid}]\u001b[0m"
+    end
+
+    # Pick a consistent color for a job based on its ID
+    def pick_job_color(jid)
+      # Use a simple hash of the job ID to pick a consistent color
+      # This ensures the same job ID always gets the same color
+      hash = jid.to_s.bytes.sum
+      JOB_COLORS[hash % JOB_COLORS.length]
     end
   end
 end

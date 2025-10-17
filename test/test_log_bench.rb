@@ -236,6 +236,250 @@ class TestLogBench < Minitest::Test
     assert_equal "INFO", parsed["level"]
   end
 
+  def test_json_formatter_adds_colored_prefix_for_direct_sidekiq_job
+    formatter = LogBench::JsonFormatter.new
+
+    # Mock LogBench::Current to return both job ID and job class (direct Sidekiq job)
+    LogBench::Current.jid = "test-job-id-123"
+    LogBench::Current.job_class = "TestJob"
+
+    result = formatter.call("INFO", Time.now, "Rails", "Job message")
+    parsed = JSON.parse(result.chomp)
+
+    # Should NOT include separate jid/job_class fields (we rely on message prefix now)
+    refute parsed.key?("jid")
+    refute parsed.key?("job_class")
+
+    # Message should have colored job prefix (color based on job ID)
+    message = parsed["message"]
+    assert_match(/\A\u001b\[1m\u001b\[\d+m\[TestJob#test-job-id-123\]\u001b\[0m Job message\z/, message)
+
+    # Verify the same job ID always gets the same color
+    result2 = formatter.call("INFO", Time.now, "Rails", "Another message")
+    parsed2 = JSON.parse(result2.chomp)
+    message2 = parsed2["message"]
+
+    # Extract color codes from both messages
+    color1 = message.match(/\u001b\[1m\u001b\[(\d+)m/)[1] if /\u001b\[1m\u001b\[(\d+)m/.match?(message)
+    color2 = message2.match(/\u001b\[1m\u001b\[(\d+)m/)[1] if /\u001b\[1m\u001b\[(\d+)m/.match?(message2)
+    assert_equal color1, color2, "Same job ID should always get the same color"
+    assert_equal "INFO", parsed["level"]
+  ensure
+    # Clean up
+    LogBench::Current.jid = nil
+    LogBench::Current.job_class = nil
+  end
+
+  def test_json_formatter_no_prefix_when_no_job_context
+    formatter = LogBench::JsonFormatter.new
+
+    # Ensure no job context is set
+    LogBench::Current.jid = nil
+    LogBench::Current.job_class = nil
+
+    result = formatter.call("INFO", Time.now, "Rails", "Regular message")
+    parsed = JSON.parse(result.chomp)
+
+    # Should not include jid/job_class fields and no colored prefix
+    refute parsed.key?("jid")
+    refute parsed.key?("job_class")
+    assert_equal "Regular message", parsed["message"]  # No prefix
+    assert_equal "INFO", parsed["level"]
+  end
+
+  def test_json_formatter_adds_colored_job_prefix_from_current_attributes
+    formatter = LogBench::JsonFormatter.new
+
+    # Set job context (direct Sidekiq job)
+    LogBench::Current.jid = "test-job-456"
+    LogBench::Current.job_class = "MyTestJob"
+
+    result = formatter.call("INFO", Time.now, "Rails", "Processing user data")
+    parsed = JSON.parse(result.chomp)
+
+    # Should NOT include separate jid/job_class fields (we rely on message prefix now)
+    refute parsed.key?("jid")
+    refute parsed.key?("job_class")
+
+    # Message should have colored job prefix (color based on job ID)
+    message = parsed["message"]
+    assert_match(/\A\u001b\[1m\u001b\[\d+m\[MyTestJob#test-job-456\]\u001b\[0m Processing user data\z/, message)
+    assert_equal "INFO", parsed["level"]
+  ensure
+    # Clean up
+    LogBench::Current.jid = nil
+    LogBench::Current.job_class = nil
+  end
+
+  def test_json_formatter_adds_colored_job_prefix_from_tags
+    formatter = LogBench::JsonFormatter.new
+
+    # No Current attributes set (ActiveJob scenario)
+    LogBench::Current.jid = nil
+    LogBench::Current.job_class = nil
+
+    # Mock current_tags to return ActiveJob tags
+    def formatter.current_tags
+      ["ActiveJob", "EmailDeliveryJob", "email-job-789"]
+    end
+
+    result = formatter.call("INFO", Time.now, "Rails", "Sending email")
+    parsed = JSON.parse(result.chomp)
+
+    # Should NOT include separate jid/job_class fields (we rely on message prefix now)
+    refute parsed.key?("jid")
+    refute parsed.key?("job_class")
+
+    # Message should have colored job prefix (color based on job ID)
+    message = parsed["message"]
+    assert_match(/\A\u001b\[1m\u001b\[\d+m\[EmailDeliveryJob#email-job-789\]\u001b\[0m Sending email\z/, message)
+    assert_equal "INFO", parsed["level"]
+
+    # Should include the original tags
+    assert_equal ["ActiveJob", "EmailDeliveryJob", "email-job-789"], parsed["tags"]
+  end
+
+  def test_json_formatter_no_prefix_when_incomplete_job_context
+    formatter = LogBench::JsonFormatter.new
+
+    # Set only jid, no job class (incomplete context)
+    LogBench::Current.jid = "test-job-789"
+    LogBench::Current.job_class = nil
+
+    result = formatter.call("INFO", Time.now, "Rails", "Some message")
+    parsed = JSON.parse(result.chomp)
+
+    # Should NOT include jid/job_class fields and no prefix (since context is incomplete)
+    refute parsed.key?("jid")
+    refute parsed.key?("job_class")
+    assert_equal "Some message", parsed["message"]  # No prefix
+    assert_equal "INFO", parsed["level"]
+  ensure
+    # Clean up
+    LogBench::Current.jid = nil
+  end
+
+  def test_json_formatter_no_job_fields_when_no_context
+    formatter = LogBench::JsonFormatter.new
+
+    # No job context set
+    LogBench::Current.jid = nil
+    LogBench::Current.job_class = nil
+
+    result = formatter.call("INFO", Time.now, "Rails", "Regular message")
+    parsed = JSON.parse(result.chomp)
+
+    # Should not include jid or job_class fields and no prefix
+    refute parsed.key?("jid")
+    refute parsed.key?("job_class")
+    assert_equal "Regular message", parsed["message"]  # No prefix
+    assert_equal "INFO", parsed["level"]
+  end
+
+  def test_sidekiq_middleware_sets_and_cleans_jid_and_job_class
+    middleware = LogBench::SidekiqMiddleware.new
+    worker = Object.new
+    job = {"jid" => "test-sidekiq-job-123", "class" => "TestJob"}
+    queue = "default"
+
+    # Ensure attributes start as nil
+    LogBench::Current.jid = nil
+    LogBench::Current.job_class = nil
+    assert_nil LogBench::Current.jid
+    assert_nil LogBench::Current.job_class
+
+    # Test that middleware sets attributes during execution
+    jid_during_execution = nil
+    job_class_during_execution = nil
+    middleware.call(worker, job, queue) do
+      jid_during_execution = LogBench::Current.jid
+      job_class_during_execution = LogBench::Current.job_class
+    end
+
+    # Should have set attributes during execution
+    assert_equal "test-sidekiq-job-123", jid_during_execution
+    assert_equal "TestJob", job_class_during_execution
+
+    # Should clean up attributes after execution
+    assert_nil LogBench::Current.jid
+    assert_nil LogBench::Current.job_class
+  end
+
+  def test_sidekiq_middleware_skips_activejob_wrapper
+    middleware = LogBench::SidekiqMiddleware.new
+    worker = Object.new
+
+    # Simulate ActiveJob wrapper payload
+    job = {
+      "jid" => "activejob-wrapper-456",
+      "class" => "ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper",
+      "args" => [
+        {
+          "job_class" => "EmailDeliveryJob",
+          "job_id" => "some-uuid",
+          "arguments" => ["user@example.com"]
+        }
+      ]
+    }
+    queue = "default"
+
+    # Ensure attributes start as nil
+    LogBench::Current.jid = nil
+    LogBench::Current.job_class = nil
+
+    # Test that middleware skips setting Current attributes for ActiveJob wrapper
+    jid_during_execution = nil
+    job_class_during_execution = nil
+    middleware.call(worker, job, queue) do
+      jid_during_execution = LogBench::Current.jid
+      job_class_during_execution = LogBench::Current.job_class
+    end
+
+    # Should NOT set Current attributes for ActiveJob wrapper (relies on tags instead)
+    assert_nil jid_during_execution
+    assert_nil job_class_during_execution
+
+    # Should clean up attributes after execution (should still be nil)
+    assert_nil LogBench::Current.jid
+    assert_nil LogBench::Current.job_class
+  end
+
+  def test_sidekiq_middleware_fallback_to_worker_class
+    middleware = LogBench::SidekiqMiddleware.new
+
+    # Create a mock worker with a specific class name
+    worker_class = Class.new do
+      def self.name
+        "CustomWorkerClass"
+      end
+    end
+    worker = worker_class.new
+
+    # Job without class information
+    job = {"jid" => "fallback-test-789"}
+    queue = "default"
+
+    # Ensure attributes start as nil
+    LogBench::Current.jid = nil
+    LogBench::Current.job_class = nil
+
+    # Test that middleware falls back to worker class name
+    jid_during_execution = nil
+    job_class_during_execution = nil
+    middleware.call(worker, job, queue) do
+      jid_during_execution = LogBench::Current.jid
+      job_class_during_execution = LogBench::Current.job_class
+    end
+
+    # Should have used worker class as fallback
+    assert_equal "fallback-test-789", jid_during_execution
+    assert_equal "CustomWorkerClass", job_class_during_execution
+
+    # Should clean up attributes after execution
+    assert_nil LogBench::Current.jid
+    assert_nil LogBench::Current.job_class
+  end
+
   def test_parse_entries_with_null_or_missing_message
     collection = LogBench::Log::Collection.new(TestFixtures.request_with_null_message_logs)
     requests = collection.requests

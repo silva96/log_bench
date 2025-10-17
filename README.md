@@ -187,6 +187,82 @@ LogBench works with JSON-formatted logs. Each log entry should include:
 - `message`: SQL query with timing information
 - `request_id`: Links query to HTTP request
 
+## Job Logging
+
+LogBench provides enhanced logging for background jobs with colored job prefixes in the TUI. Job logs are automatically prefixed with `[JobClass#job-id]` in orange/yellow color for easy identification.
+
+### ActiveJob
+
+For **ActiveJob** classes, use the job's `logger` method (not `Rails.logger`) to ensure logs get proper job context:
+
+```ruby
+class EmailDeliveryJob < ApplicationJob
+  def perform(user_id)
+    logger.info "Starting email delivery for user #{user_id}"  # ✅ Will have job prefix
+
+    user = User.find(user_id)
+    logger.info "Found user: #{user.email}"                    # ✅ Will have job prefix
+
+    # SQL queries are automatically tagged
+    user.update!(last_email_sent_at: Time.current)            # ✅ Will have job prefix
+
+    logger.info "Email delivery completed"                     # ✅ Will have job prefix
+  end
+end
+```
+
+**❌ Don't use `Rails.logger` in ActiveJob:**
+```ruby
+class EmailDeliveryJob < ApplicationJob
+  def perform(user_id)
+    Rails.logger.info "This won't have job prefix"  # ❌ No job context
+  end
+end
+```
+
+### Plain Sidekiq Jobs
+
+For **plain Sidekiq** jobs (not using ActiveJob), LogBench automatically captures job context:
+
+```ruby
+class DataProcessingJob
+  include Sidekiq::Job
+
+  def perform(data_id)
+    Rails.logger.info "Processing data #{data_id}"  # ✅ Will have job prefix
+
+    # SQL queries are automatically tagged
+    data = Data.find(data_id)                       # ✅ Will have job prefix
+    data.process!
+
+    Rails.logger.info "Data processing completed"   # ✅ Will have job prefix
+  end
+end
+```
+
+### Job Log Output
+
+In the TUI, job-related logs appear with colored prefixes:
+
+```
+🟡[EmailDeliveryJob#email-job-123] Starting email delivery for user 456
+🟡[EmailDeliveryJob#email-job-123] Found user: user@example.com
+🟡[EmailDeliveryJob#email-job-123]   User Load (1.2ms)  SELECT "users".* FROM "users" WHERE "users"."id" = $1
+🟡[EmailDeliveryJob#email-job-123] Email delivery completed
+```
+
+*(🟡 represents yellow bold colored job name, consistent with Rails SQL query coloring)*
+
+### Job Context Detection
+
+LogBench automatically detects job context through:
+
+- **ActiveJob**: Uses Rails' tagged logging system with job class and job ID
+- **Plain Sidekiq**: Uses LogBench::Current attributes set by Sidekiq middleware
+- **SQL Queries**: Inherit job context from the current request/job execution
+
+No additional configuration is required - job logging works automatically once LogBench is installed.
+
 ## Testing
 
 LogBench includes a comprehensive test suite to ensure reliability and correctness.
