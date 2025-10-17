@@ -97,8 +97,8 @@ class TestJobEnqueueTracking < Minitest::Test
     request_id = "req-abc-123"
     job_id = "job-xyz-789"
 
-    request_log = %Q({"method":"POST","path":"/users","status":200,"duration":45.2,"controller":"UsersController","action":"create","request_id":"#{request_id}","timestamp":"2025-01-01T10:00:00Z"})
-    enqueue_log = %Q({"message":"Enqueued EmailJob (Job ID: #{job_id}) to Async(mailers)","level":"INFO","timestamp":"2025-01-01T10:00:01Z","request_id":"#{request_id}","tags":["ActiveJob"]})
+    request_log = %({"method":"POST","path":"/users","status":200,"duration":45.2,"controller":"UsersController","action":"create","request_id":"#{request_id}","timestamp":"2025-01-01T10:00:00Z"})
+    enqueue_log = %({"message":"Enqueued EmailJob (Job ID: #{job_id}) to Async(mailers)","level":"INFO","timestamp":"2025-01-01T10:00:01Z","request_id":"#{request_id}","tags":["ActiveJob"]})
 
     # Step 2: Parse the logs
     collection = LogBench::Log::Collection.new([request_log, enqueue_log])
@@ -132,7 +132,7 @@ class TestJobEnqueueTracking < Minitest::Test
     job_ids_map = {job_id => request_id}
 
     # Now parse a job log that has NO request_id, only tags with job_id
-    job_log = %Q({"message":"[TestJob##{job_id}] TestJob#perform at 2025-10-17 11:02:51 -0300","level":"INFO","timestamp":"2025-10-17T14:02:51.993Z","time":1760709771.993279,"tags":["ActiveJob","TestJob","#{job_id}"]})
+    job_log = %({"message":"[TestJob##{job_id}] TestJob#perform at 2025-10-17 11:02:51 -0300","level":"INFO","timestamp":"2025-10-17T14:02:51.993Z","time":1760709771.993279,"tags":["ActiveJob","TestJob","#{job_id}"]})
 
     # Parse with the job_ids_map
     collection = LogBench::Log::Collection.new([job_log], job_ids_map)
@@ -153,7 +153,7 @@ class TestJobEnqueueTracking < Minitest::Test
     # Job log without a mapping should be discarded (no request_id means it can't be grouped)
     job_id = "unknown-job-id"
 
-    job_log = %Q({"message":"[TestJob##{job_id}] Processing...","level":"INFO","timestamp":"2025-10-17T14:02:51.993Z","tags":["ActiveJob","TestJob","#{job_id}"]})
+    job_log = %({"message":"[TestJob##{job_id}] Processing...","level":"INFO","timestamp":"2025-10-17T14:02:51.993Z","tags":["ActiveJob","TestJob","#{job_id}"]})
 
     # Parse WITHOUT job_ids_map
     collection = LogBench::Log::Collection.new([job_log])
@@ -172,11 +172,11 @@ class TestJobEnqueueTracking < Minitest::Test
     job_id = "job-initial-456"
 
     # Simulate a log file with request, enqueue, and job execution logs
-    request_log = %Q({"method":"POST","path":"/users","status":200,"duration":45.2,"controller":"UsersController","action":"create","request_id":"#{request_id}","timestamp":"2025-01-01T10:00:00Z"})
-    enqueue_log = %Q({"message":"Enqueued EmailJob (Job ID: #{job_id}) to Async(mailers)","level":"INFO","timestamp":"2025-01-01T10:00:01Z","request_id":"#{request_id}","tags":["ActiveJob"]})
-    job_log_1 = %Q({"message":"[EmailJob##{job_id}] Performing EmailJob","level":"INFO","timestamp":"2025-01-01T10:00:05Z","tags":["ActiveJob","EmailJob","#{job_id}"]})
-    job_log_2 = %Q({"message":"[EmailJob##{job_id}] Sending email","level":"INFO","timestamp":"2025-01-01T10:00:06Z","tags":["ActiveJob","EmailJob","#{job_id}"]})
-    job_log_3 = %Q({"message":"[EmailJob##{job_id}] Performed EmailJob","level":"INFO","timestamp":"2025-01-01T10:00:07Z","tags":["ActiveJob","EmailJob","#{job_id}"]})
+    request_log = %({"method":"POST","path":"/users","status":200,"duration":45.2,"controller":"UsersController","action":"create","request_id":"#{request_id}","timestamp":"2025-01-01T10:00:00Z"})
+    enqueue_log = %({"message":"Enqueued EmailJob (Job ID: #{job_id}) to Async(mailers)","level":"INFO","timestamp":"2025-01-01T10:00:01Z","request_id":"#{request_id}","tags":["ActiveJob"]})
+    job_log_1 = %({"message":"[EmailJob##{job_id}] Performing EmailJob","level":"INFO","timestamp":"2025-01-01T10:00:05Z","tags":["ActiveJob","EmailJob","#{job_id}"]})
+    job_log_2 = %({"message":"[EmailJob##{job_id}] Sending email","level":"INFO","timestamp":"2025-01-01T10:00:06Z","tags":["ActiveJob","EmailJob","#{job_id}"]})
+    job_log_3 = %({"message":"[EmailJob##{job_id}] Performed EmailJob","level":"INFO","timestamp":"2025-01-01T10:00:07Z","tags":["ActiveJob","EmailJob","#{job_id}"]})
 
     all_logs = [request_log, enqueue_log, job_log_1, job_log_2, job_log_3]
 
@@ -217,4 +217,3 @@ class TestJobEnqueueTracking < Minitest::Test
     end
   end
 end
-
