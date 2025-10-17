@@ -3,6 +3,7 @@
 module LogBench
   module Log
     class Parser
+      extend JobPrefixFormatter
       def self.parse_line(raw_line)
         clean_line = raw_line.encode("UTF-8", invalid: :replace, undef: :replace, replace: "").strip
         data = JSON.parse(clean_line)
@@ -115,26 +116,39 @@ module LogBench
       end
 
       def self.enrich_entries_with_request_ids(entries, job_ids_map)
-        return entries if job_ids_map.empty?
-
         entries.each do |entry|
-          # Skip if entry already has a request_id
-          next if entry.request_id
+          next unless entry.respond_to?(:json_data)
 
-          # Try to extract job_id from tags
-          job_id = extract_job_id_from_tags(entry.json_data["tags"]) if entry.respond_to?(:json_data)
+          tags = entry.json_data["tags"]
+          job_id, job_class = extract_job_info_from_tags(tags)
           next unless job_id
 
-          # Look up the request_id for this job_id
-          request_id = job_ids_map[job_id]
-          next unless request_id
+          # Add colored job prefix if message doesn't already have one
+          # (This works for both old logs and new logs)
+          add_job_prefix_to_entry(entry, job_id, job_class)
 
-          # Set the request_id on the entry
-          entry.instance_variable_set(:@request_id, request_id)
+          # Enrich with request_id if entry doesn't have one
+          if !entry.request_id && !job_ids_map.empty?
+            request_id = job_ids_map[job_id]
+            entry.instance_variable_set(:@request_id, request_id) if request_id
+          end
         end
 
         entries
       end
+
+      def self.add_job_prefix_to_entry(entry, job_id, job_class)
+        # Check if message already has a job prefix (colored or not)
+        return if entry.content.match?(/\[[\w:]+#[^\]]+\]/)
+
+        # Build colored job prefix
+        job_prefix = build_colored_job_prefix(job_class, job_id)
+        new_content = "#{job_prefix} #{entry.content}"
+
+        # Update the entry's content
+        entry.instance_variable_set(:@content, new_content)
+      end
+
     end
   end
 end

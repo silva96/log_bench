@@ -8,16 +8,7 @@ module LogBench
   # JSON logs. Extends TaggedLogging::Formatter for full Rails compatibility.
   class JsonFormatter < ::Logger::Formatter
     include ActiveSupport::TaggedLogging::Formatter
-
-    # Job color palette - using standard colors only (no bright colors)
-    JOB_COLORS = [
-      31, # Red
-      32, # Green
-      33, # Yellow
-      34, # Blue
-      35, # Magenta
-      36  # Cyan
-    ].freeze
+    include JobPrefixFormatter
 
     def call(severity, timestamp, progname, message)
       log_entry = build_log_entry(severity, timestamp, progname, message)
@@ -137,35 +128,6 @@ module LogBench
 
       # Fallback to tags (for ActiveJob)
       extract_job_info_from_tags(tags)
-    end
-
-    # Extract job info from ActiveJob tags
-    def extract_job_info_from_tags(tags)
-      return [nil, nil] unless tags.is_a?(Array) && tags.size >= 3
-
-      # Check if this looks like ActiveJob tags: ["ActiveJob", "JobClassName", "jid"]
-      if tags[0] == "ActiveJob" && tags[1] && tags[2]
-        jid = tags[2]
-        job_class = tags[1]
-        return [jid, job_class]
-      end
-
-      [nil, nil]
-    end
-
-    # Build colored job prefix using ANSI color codes
-    def build_colored_job_prefix(job_class, jid)
-      # Pick a color based on the job ID for visual differentiation
-      color_code = pick_job_color(jid)
-      "\u001b[1m\u001b[#{color_code}m[#{job_class}##{jid}]\u001b[0m"
-    end
-
-    # Pick a consistent color for a job based on its ID
-    def pick_job_color(jid)
-      # Use a simple hash of the job ID to pick a consistent color
-      # This ensures the same job ID always gets the same color
-      hash = jid.to_s.bytes.sum
-      JOB_COLORS[hash % JOB_COLORS.length]
     end
   end
 end
