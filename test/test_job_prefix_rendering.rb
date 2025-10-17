@@ -11,8 +11,8 @@ class TestJobPrefixRendering < Minitest::Test
     job_class = "EmailJob"
 
     # Create a request and a job log
-    request_log = %Q({"method":"POST","path":"/users","status":200,"duration":45.2,"request_id":"#{request_id}","timestamp":"2025-10-17T14:00:00Z"})
-    job_log = %Q({"message":"Sending email to user","level":"INFO","timestamp":"2025-10-17T14:00:01Z","tags":["ActiveJob","#{job_class}","#{job_id}"],"request_id":"#{request_id}"})
+    request_log = %({"method":"POST","path":"/users","status":200,"duration":45.2,"request_id":"#{request_id}","timestamp":"2025-10-17T14:00:00Z"})
+    job_log = %({"message":"Sending email to user","level":"INFO","timestamp":"2025-10-17T14:00:01Z","tags":["ActiveJob","#{job_class}","#{job_id}"],"request_id":"#{request_id}"})
 
     collection = LogBench::Log::Collection.new([request_log, job_log])
     requests = collection.requests
@@ -39,8 +39,8 @@ class TestJobPrefixRendering < Minitest::Test
     # Message already has the colored prefix (plain text version for testing)
     message_with_prefix = "[#{job_class}##{job_id}] Processing data"
 
-    request_log = %Q({"method":"POST","path":"/data","status":200,"duration":45.2,"request_id":"#{request_id}","timestamp":"2025-10-17T14:00:00Z"})
-    job_log = %Q({"message":"#{message_with_prefix}","level":"INFO","timestamp":"2025-10-17T14:00:01Z","tags":["ActiveJob","#{job_class}","#{job_id}"],"request_id":"#{request_id}"})
+    request_log = %({"method":"POST","path":"/data","status":200,"duration":45.2,"request_id":"#{request_id}","timestamp":"2025-10-17T14:00:00Z"})
+    job_log = %({"message":"#{message_with_prefix}","level":"INFO","timestamp":"2025-10-17T14:00:01Z","tags":["ActiveJob","#{job_class}","#{job_id}"],"request_id":"#{request_id}"})
 
     collection = LogBench::Log::Collection.new([request_log, job_log])
     requests = collection.requests
@@ -57,8 +57,8 @@ class TestJobPrefixRendering < Minitest::Test
     # Regular log without ActiveJob tags
     request_id = "req-789"
 
-    request_log = %Q({"method":"GET","path":"/test","status":200,"duration":10.5,"request_id":"#{request_id}","timestamp":"2025-10-17T14:00:00Z"})
-    regular_log = %Q({"message":"Regular log message","level":"INFO","timestamp":"2025-10-17T14:00:01Z","request_id":"#{request_id}"})
+    request_log = %({"method":"GET","path":"/test","status":200,"duration":10.5,"request_id":"#{request_id}","timestamp":"2025-10-17T14:00:00Z"})
+    regular_log = %({"message":"Regular log message","level":"INFO","timestamp":"2025-10-17T14:00:01Z","request_id":"#{request_id}"})
 
     collection = LogBench::Log::Collection.new([request_log, regular_log])
     requests = collection.requests
@@ -78,11 +78,11 @@ class TestJobPrefixRendering < Minitest::Test
     job_class = "TestJob"
 
     # Create two separate requests with job logs
-    request_log1 = %Q({"method":"POST","path":"/test1","status":200,"duration":10.5,"request_id":"req-1","timestamp":"2025-10-17T14:00:00Z"})
-    job_log1 = %Q({"message":"First message","level":"INFO","timestamp":"2025-10-17T14:00:01Z","tags":["ActiveJob","#{job_class}","#{job_id}"],"request_id":"req-1"})
+    request_log1 = %({"method":"POST","path":"/test1","status":200,"duration":10.5,"request_id":"req-1","timestamp":"2025-10-17T14:00:00Z"})
+    job_log1 = %({"message":"First message","level":"INFO","timestamp":"2025-10-17T14:00:01Z","tags":["ActiveJob","#{job_class}","#{job_id}"],"request_id":"req-1"})
 
-    request_log2 = %Q({"method":"POST","path":"/test2","status":200,"duration":10.5,"request_id":"req-2","timestamp":"2025-10-17T14:00:02Z"})
-    job_log2 = %Q({"message":"Second message","level":"INFO","timestamp":"2025-10-17T14:00:03Z","tags":["ActiveJob","#{job_class}","#{job_id}"],"request_id":"req-2"})
+    request_log2 = %({"method":"POST","path":"/test2","status":200,"duration":10.5,"request_id":"req-2","timestamp":"2025-10-17T14:00:02Z"})
+    job_log2 = %({"message":"Second message","level":"INFO","timestamp":"2025-10-17T14:00:03Z","tags":["ActiveJob","#{job_class}","#{job_id}"],"request_id":"req-2"})
 
     collection1 = LogBench::Log::Collection.new([request_log1, job_log1])
     collection2 = LogBench::Log::Collection.new([request_log2, job_log2])
@@ -100,4 +100,3 @@ class TestJobPrefixRendering < Minitest::Test
     assert_equal job_id, entry2.json_data["tags"][2]
   end
 end
-

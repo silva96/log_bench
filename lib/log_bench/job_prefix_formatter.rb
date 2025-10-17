@@ -44,4 +44,3 @@ module LogBench
     end
   end
 end
-

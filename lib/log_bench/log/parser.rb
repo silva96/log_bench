@@ -148,7 +148,6 @@ module LogBench
         # Update the entry's content
         entry.instance_variable_set(:@content, new_content)
       end
-
     end
   end
 end
