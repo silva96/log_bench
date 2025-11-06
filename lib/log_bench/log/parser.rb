@@ -113,7 +113,18 @@ module LogBench
         return unless entry.is_a?(JobEnqueueEntry)
         return unless defined?(App::State)
 
-        App::State.instance.register_job_enqueue(entry.job_id, entry.request_id)
+        # If entry has a request_id, use it directly
+        request_id = entry.request_id
+
+        # If no request_id, check if this enqueue happened inside another job
+        # by looking at the tags to find the parent job's request_id
+        if !request_id && entry.respond_to?(:json_data)
+          tags = entry.json_data["tags"]
+          parent_job_id, _parent_job_class = extract_job_info_from_tags(tags)
+          request_id = App::State.instance.request_id_for_job(parent_job_id) if parent_job_id
+        end
+
+        App::State.instance.register_job_enqueue(entry.job_id, request_id)
       end
 
       # Enrich job execution logs with request_id and colored prefix

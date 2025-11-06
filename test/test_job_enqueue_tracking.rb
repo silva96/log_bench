@@ -205,4 +205,112 @@ class TestJobEnqueueTracking < Minitest::Test
       assert_equal request_id, log.request_id, "Job log should have request_id from mapping"
     end
   end
+
+  def test_nested_job_enqueues_chain_request_id
+    # Scenario: HTTP request → JobA → JobB (nested)
+    request_id = "req-123"
+    job_a_id = "job-a-456"
+    job_b_id = "job-b-789"
+
+    # 1. HTTP request
+    request_log = %({"method":"POST","path":"/users","status":200,"request_id":"#{request_id}","timestamp":"2025-01-01T10:00:00Z"})
+
+    # 2. JobA enqueued from HTTP request (has request_id)
+    enqueue_a_log = %({"message":"Enqueued JobA (Job ID: #{job_a_id})","request_id":"#{request_id}","timestamp":"2025-01-01T10:00:01Z","tags":["ActiveJob"]})
+
+    # 3. JobA executes (no request_id, only tags)
+    job_a_log = %({"message":"[JobA##{job_a_id}] Performing JobA","timestamp":"2025-01-01T10:00:05Z","tags":["ActiveJob","JobA","#{job_a_id}"]})
+
+    # 4. JobB enqueued from INSIDE JobA (no request_id, but has tags with parent job_a_id)
+    enqueue_b_log = %({"message":"Enqueued JobB (Job ID: #{job_b_id})","timestamp":"2025-01-01T10:00:06Z","tags":["ActiveJob","JobA","#{job_a_id}"]})
+
+    # 5. JobB executes (no request_id, only tags)
+    job_b_log = %({"message":"[JobB##{job_b_id}] Performing JobB","timestamp":"2025-01-01T10:00:10Z","tags":["ActiveJob","JobB","#{job_b_id}"]})
+
+    all_logs = [request_log, enqueue_a_log, job_a_log, enqueue_b_log, job_b_log]
+
+    # Parse all logs
+    state = test_state
+    collection = LogBench::Log::Collection.new(all_logs)
+
+    # Verify the chain:
+    # job-a-456 → req-123 (from HTTP request)
+    assert_equal request_id, state.request_id_for_job(job_a_id), "JobA should map to request_id"
+
+    # job-b-789 → req-123 (chained from JobA's request_id)
+    assert_equal request_id, state.request_id_for_job(job_b_id), "JobB should chain to same request_id via JobA"
+
+    # All logs should be grouped under the same request
+    requests = collection.requests
+    assert_equal 1, requests.size, "All logs should be grouped under one request"
+
+    request = requests.first
+    assert_equal request_id, request.request_id
+
+    # Should have: enqueue_a + job_a + enqueue_b + job_b = 4 related logs
+    assert_equal 4, request.related_logs.size
+
+    # All job logs should have the request_id
+    job_logs = request.related_logs.select { |log| log.content.include?("Job") }
+    job_logs.each do |log|
+      assert_equal request_id, log.request_id, "All job logs should have request_id: #{log.content}"
+    end
+  end
+
+  def test_deeply_nested_jobs_chain_request_id
+    # Scenario: HTTP request → JobA → JobB → JobC (3 levels deep)
+    request_id = "req-999"
+    job_a_id = "job-a-111"
+    job_b_id = "job-b-222"
+    job_c_id = "job-c-333"
+
+    logs = [
+      # 1. HTTP request
+      %({"method":"POST","path":"/start","status":200,"request_id":"#{request_id}","timestamp":"2025-01-01T10:00:00Z"}),
+
+      # 2. JobA enqueued from HTTP request
+      %({"message":"Enqueued JobA (Job ID: #{job_a_id})","request_id":"#{request_id}","timestamp":"2025-01-01T10:00:01Z","tags":["ActiveJob"]}),
+
+      # 3. JobA executes
+      %({"message":"[JobA##{job_a_id}] Performing JobA","timestamp":"2025-01-01T10:00:05Z","tags":["ActiveJob","JobA","#{job_a_id}"]}),
+
+      # 4. JobB enqueued from INSIDE JobA
+      %({"message":"Enqueued JobB (Job ID: #{job_b_id})","timestamp":"2025-01-01T10:00:06Z","tags":["ActiveJob","JobA","#{job_a_id}"]}),
+
+      # 5. JobB executes
+      %({"message":"[JobB##{job_b_id}] Performing JobB","timestamp":"2025-01-01T10:00:10Z","tags":["ActiveJob","JobB","#{job_b_id}"]}),
+
+      # 6. JobC enqueued from INSIDE JobB
+      %({"message":"Enqueued JobC (Job ID: #{job_c_id})","timestamp":"2025-01-01T10:00:11Z","tags":["ActiveJob","JobB","#{job_b_id}"]}),
+
+      # 7. JobC executes
+      %({"message":"[JobC##{job_c_id}] Performing JobC","timestamp":"2025-01-01T10:00:15Z","tags":["ActiveJob","JobC","#{job_c_id}"]})
+    ]
+
+    # Parse all logs
+    state = test_state
+    collection = LogBench::Log::Collection.new(logs)
+
+    # Verify the chain works at all levels:
+    assert_equal request_id, state.request_id_for_job(job_a_id), "JobA should map to request_id"
+    assert_equal request_id, state.request_id_for_job(job_b_id), "JobB should chain to request_id via JobA"
+    assert_equal request_id, state.request_id_for_job(job_c_id), "JobC should chain to request_id via JobB"
+
+    # All logs should be grouped under the same request
+    requests = collection.requests
+    assert_equal 1, requests.size, "All logs should be grouped under one request"
+
+    request = requests.first
+    assert_equal request_id, request.request_id
+
+    # Should have: enqueue_a + job_a + enqueue_b + job_b + enqueue_c + job_c = 6 related logs
+    assert_equal 6, request.related_logs.size
+
+    # All job logs should have the request_id
+    job_logs = request.related_logs.select { |log| log.content.include?("Job") }
+    assert_equal 6, job_logs.size
+    job_logs.each do |log|
+      assert_equal request_id, log.request_id, "All job logs should have request_id: #{log.content}"
+    end
+  end
 end
