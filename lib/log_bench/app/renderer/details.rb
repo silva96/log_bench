@@ -193,6 +193,8 @@ module LogBench
           entry_id += 1
           add_request_id_lines(lines, request, entry_id)
           entry_id += 1
+          add_request_timestamp_lines(lines, request, entry_id)
+          entry_id += 1
           add_params_lines(lines, request, max_width, entry_id)
           entry_id += 1
           add_related_logs_section(lines, request, entry_id)
@@ -376,6 +378,20 @@ module LogBench
 
         def color_pair(n)
           screen.color_pair(n)
+        end
+
+        def add_request_timestamp_lines(lines, request, entry_id)
+          if request.timestamp
+            lines << {
+              text: "Timestamp: #{request.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC")}",
+              color: nil,
+              entry_id: entry_id,
+              segments: [
+                {text: "Timestamp: ", color: color_pair(1)},
+                {text: request.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC"), color: nil}  # Default white color
+              ]
+            }
+          end
         end
 
         def detail_win
