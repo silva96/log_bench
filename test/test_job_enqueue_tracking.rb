@@ -84,6 +84,42 @@ class TestJobEnqueueTracking < Minitest::Test
     refute LogBench::Log::Parser.job_enqueue_message?(data3)
   end
 
+  def test_job_enqueue_message_detection_with_array_message
+    # Should handle Array messages
+    data1 = {"message" => ["Enqueued", "TestJob", "(Job ID: 123-456)", "to", "Async(default)"]}
+    assert LogBench::Log::Parser.job_enqueue_message?(data1), "Should detect job enqueue when message is an Array"
+
+    # Should not detect regular messages when Array
+    data2 = {"message" => ["Regular", "log", "message"]}
+    refute LogBench::Log::Parser.job_enqueue_message?(data2), "Should not detect job enqueue for regular Array message"
+
+    # Should extract job ID from Array message
+    job_id = LogBench::Log::Parser.extract_job_id_from_enqueue(data1["message"])
+    assert_equal "123-456", job_id, "Should extract job ID from Array message"
+  end
+
+  def test_parse_job_enqueue_with_array_message
+    # Test parsing a job enqueue log entry where message is an Array
+    request_log = '{"method":"GET","path":"/users","status":200,"duration":45.2,"controller":"UsersController","action":"index","request_id":"d72f06fa-71f1-4fb4-a27f-d9b36fe17593","timestamp":"2025-01-01T10:00:00Z"}'
+    enqueue_log = '{"message":["Enqueued","TestJob","(Job ID: 8afaa702-7b0d-4d20-91ad-65bbf78ee0c8)","to","Async(default)","at","2025-10-17","14:02:51","UTC"],"level":"INFO","timestamp":"2025-10-17T14:02:49.976Z","time":1760709769.9763,"request_id":"d72f06fa-71f1-4fb4-a27f-d9b36fe17593","tags":["ActiveJob"]}'
+
+    collection = LogBench::Log::Collection.new([request_log, enqueue_log])
+    requests = collection.requests
+
+    assert_equal 1, requests.size
+    request = requests.first
+
+    # Should have one job enqueue entry in related logs
+    job_enqueue_entries = request.related_logs.select { |log| log.is_a?(LogBench::Log::JobEnqueueEntry) }
+    assert_equal 1, job_enqueue_entries.size
+
+    job_enqueue = job_enqueue_entries.first
+    assert_equal "8afaa702-7b0d-4d20-91ad-65bbf78ee0c8", job_enqueue.job_id
+    assert_equal "d72f06fa-71f1-4fb4-a27f-d9b36fe17593", job_enqueue.request_id
+    # Content should be normalized (joined Array)
+    assert_match(/Enqueued.*TestJob.*Job ID: 8afaa702-7b0d-4d20-91ad-65bbf78ee0c8/, job_enqueue.content)
+  end
+
   def test_full_workflow_example
     # This test demonstrates the complete workflow:
     # 1. HTTP request comes in

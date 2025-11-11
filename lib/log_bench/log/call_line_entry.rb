@@ -23,7 +23,7 @@ module LogBench
 
       def extract_from_json(data)
         super
-        message = data["message"] || ""
+        message = Parser.normalize_message(data["message"])
         return unless call_line_message?(data)
 
         self.content = message.strip
@@ -40,7 +40,7 @@ module LogBench
       end
 
       def call_line_message?(data)
-        message = data["message"] || ""
+        message = Parser.normalize_message(data["message"])
         message.include?("↳")
       end
     end

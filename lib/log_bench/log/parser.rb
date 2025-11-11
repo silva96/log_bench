@@ -83,28 +83,42 @@ module LogBench
         data["method"] && data["path"] && data["status"]
       end
 
+      def self.normalize_message(message)
+        case message
+        when String
+          message
+        when Array
+          message.join(" ")
+        when NilClass
+          ""
+        else
+          message.to_s
+        end
+      end
+
       def self.sql_message?(data)
-        message = data["message"] || ""
+        message = normalize_message(data["message"])
         %w[SELECT INSERT UPDATE DELETE TRANSACTION BEGIN COMMIT ROLLBACK SAVEPOINT].any? { |op| message.include?(op) }
       end
 
       def self.cache_message?(data)
-        message = data["message"] || ""
+        message = normalize_message(data["message"])
         message.include?("CACHE")
       end
 
       def self.call_stack_message?(data)
-        message = data["message"] || ""
+        message = normalize_message(data["message"])
         message.include?("↳")
       end
 
       def self.job_enqueue_message?(data)
-        message = data["message"] || ""
+        message = normalize_message(data["message"])
         message.match?(/Enqueued .+ \(Job ID: .+\)/)
       end
 
       def self.extract_job_id_from_enqueue(message)
-        match = message.match(/Job ID: ([^\)]+)/)
+        normalized_message = normalize_message(message)
+        match = normalized_message.match(/Job ID: ([^\)]+)/)
         match[1] if match
       end
 

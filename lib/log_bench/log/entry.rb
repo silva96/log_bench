@@ -9,7 +9,7 @@ module LogBench
         self.json_data = json_data
         self.timestamp = parse_timestamp(json_data["timestamp"])
         self.request_id = json_data["request_id"]
-        self.content = json_data["message"] || ""
+        self.content = Parser.normalize_message(json_data["message"])
         self.type = :other
       end
 

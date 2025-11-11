@@ -497,4 +497,60 @@ class TestLogBench < Minitest::Test
     assert_equal :other, request.related_logs[0].type
     assert_equal :other, request.related_logs[1].type
   end
+
+  def test_normalize_message_handles_string
+    assert_equal "test message", LogBench::Log::Parser.normalize_message("test message")
+  end
+
+  def test_normalize_message_handles_array
+    assert_equal "test message", LogBench::Log::Parser.normalize_message(["test", "message"])
+  end
+
+  def test_normalize_message_handles_nil
+    assert_equal "", LogBench::Log::Parser.normalize_message(nil)
+  end
+
+  def test_normalize_message_handles_other_types
+    assert_equal "123", LogBench::Log::Parser.normalize_message(123)
+    assert_equal "true", LogBench::Log::Parser.normalize_message(true)
+  end
+
+  def test_sql_message_detection_with_array
+    # Should detect SQL messages when message is an Array
+    data1 = {"message" => ["SELECT", "*", "FROM", "users"]}
+    assert LogBench::Log::Parser.sql_message?(data1), "Should detect SQL when message is an Array"
+
+    data2 = {"message" => ["INSERT", "INTO", "posts"]}
+    assert LogBench::Log::Parser.sql_message?(data2), "Should detect INSERT when message is an Array"
+
+    data3 = {"message" => ["Regular", "log", "message"]}
+    refute LogBench::Log::Parser.sql_message?(data3), "Should not detect SQL for regular Array message"
+  end
+
+  def test_cache_message_detection_with_array
+    # Should detect cache messages when message is an Array
+    data1 = {"message" => ["CACHE", "hit", "for", "key"]}
+    assert LogBench::Log::Parser.cache_message?(data1), "Should detect CACHE when message is an Array"
+
+    data2 = {"message" => ["Regular", "log", "message"]}
+    refute LogBench::Log::Parser.cache_message?(data2), "Should not detect CACHE for regular Array message"
+  end
+
+  def test_call_stack_message_detection_with_array
+    # Should detect call stack messages when message is an Array
+    data1 = {"message" => ["↳", "app/controllers/users_controller.rb:10"]}
+    assert LogBench::Log::Parser.call_stack_message?(data1), "Should detect call stack when message is an Array"
+
+    data2 = {"message" => ["Regular", "log", "message"]}
+    refute LogBench::Log::Parser.call_stack_message?(data2), "Should not detect call stack for regular Array message"
+  end
+
+  def test_entry_content_with_array_message
+    # Entry should normalize Array messages to strings
+    json_data = {"message" => ["Test", "message", "with", "array"], "timestamp" => "2025-01-01T10:00:00Z"}
+    entry = LogBench::Log::Entry.new(json_data)
+
+    assert_equal "Test message with array", entry.content
+    assert_instance_of String, entry.content
+  end
 end
