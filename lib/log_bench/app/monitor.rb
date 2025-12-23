@@ -43,6 +43,7 @@ module LogBench
       def add_new_requests(new_requests)
         return if new_requests.empty?
 
+        state.track_new_requests(new_requests)
         state.requests.concat(new_requests)
         keep_recent_requests
       end
