@@ -7,7 +7,7 @@ module LogBench
     class State
       include Singleton
 
-      attr_reader :main_filter, :sort, :detail_filter, :cleared_requests
+      attr_reader :main_filter, :sort, :detail_filter, :cleared_requests, :start_time, :stats, :total_queries
       attr_accessor :requests, :orphan_requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :detail_selected_entry, :text_selection_mode, :update_available, :update_version
 
       def initialize
@@ -32,6 +32,9 @@ module LogBench
         self.update_version = nil
         self.cleared_requests = nil
         self.job_ids_map = {}
+        self.start_time = Time.now
+        self.stats = Stats.new
+        self.total_queries = 0
       end
 
       def running?
@@ -91,17 +94,20 @@ module LogBench
       def clear_requests
         if cleared_requests
           cleared_requests[:requests] += requests
+          cleared_requests[:total_queries] += total_queries
         else
           self.cleared_requests = {
             requests: requests,
             selected: selected,
             scroll_offset: scroll_offset,
             detail_scroll_offset: detail_scroll_offset,
-            detail_selected_entry: detail_selected_entry
+            detail_selected_entry: detail_selected_entry,
+            total_queries: total_queries
           }
         end
 
         self.requests = []
+        self.total_queries = 0
         self.selected = 0
         self.scroll_offset = 0
         self.detail_scroll_offset = 0
@@ -115,6 +121,7 @@ module LogBench
         restored_requests = cleared_requests[:requests] + requests
 
         self.requests = restored_requests
+        self.total_queries = cleared_requests[:total_queries] + total_queries
         self.selected = cleared_requests[:selected]
         self.scroll_offset = cleared_requests[:scroll_offset]
         self.detail_scroll_offset = cleared_requests[:detail_scroll_offset]
@@ -297,10 +304,40 @@ module LogBench
         job_ids_map[job_id]
       end
 
+      def track_new_requests(new_requests)
+        stats.track_requests(new_requests)
+        # Update total queries counter
+        self.total_queries += new_requests.sum(&:query_count)
+      end
+
+      def set_initial_query_count(requests)
+        self.total_queries = requests.sum(&:query_count)
+      end
+
+      def elapsed_time
+        Time.now - start_time
+      end
+
+      def requests_per_second
+        stats.requests_per_second
+      end
+
+      def requests_per_minute
+        stats.requests_per_minute
+      end
+
+      def queries_per_second
+        stats.queries_per_second
+      end
+
+      def queries_per_minute
+        stats.queries_per_minute
+      end
+
       private
 
       attr_accessor :focused_pane, :running, :job_ids_map
-      attr_writer :main_filter, :detail_filter, :sort, :cleared_requests
+      attr_writer :main_filter, :detail_filter, :sort, :cleared_requests, :start_time, :stats, :total_queries
     end
   end
 end

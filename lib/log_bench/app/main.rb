@@ -68,7 +68,9 @@ module LogBench
 
       def load_initial_data
         self.log_file = Log::File.new(log_file_path)
-        state.requests = log_file.requests
+        initial_requests = log_file.requests
+        state.requests = initial_requests
+        state.set_initial_query_count(initial_requests)
         log_file.mark_as_read!
       end
 
