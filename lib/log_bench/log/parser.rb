@@ -7,6 +7,13 @@ module LogBench
 
       def self.parse_line(raw_line)
         clean_line = raw_line.encode("UTF-8", invalid: :replace, undef: :replace, replace: "").strip
+
+        logger_type = LogBench.configuration&.logger_type || :lograge
+        if logger_type == :semantic_logger && Parsers::SemanticLoggerParser.human_readable?(clean_line)
+          json_line = Parsers::SemanticLoggerParser.convert_to_json(clean_line)
+          clean_line = json_line if json_line
+        end
+
         data = JSON.parse(clean_line)
         return unless data.is_a?(Hash)
 
@@ -14,7 +21,8 @@ module LogBench
         register_job_enqueue(entry)
         enrich_job_entry(entry)
         entry
-      rescue JSON::ParserError
+      rescue JSON::ParserError => e
+        LogBench.logger.debug("Failed to parse line as JSON: #{e.message}") if LogBench.respond_to?(:logger)
         nil
       end
 
@@ -70,7 +78,7 @@ module LogBench
       end
 
       def self.determine_json_type(data)
-        return :http_request if lograge_request?(data)
+        return :http_request if http_request?(data)
         return :cache if cache_message?(data)
         return :sql if sql_message?(data)
         return :sql_call_line if call_stack_message?(data)
@@ -79,8 +87,19 @@ module LogBench
         :other
       end
 
+      def self.http_request?(data)
+        lograge_request?(data) || semantic_logger_request?(data)
+      end
+
       def self.lograge_request?(data)
         data["method"] && data["path"] && data["status"]
+      end
+
+      def self.semantic_logger_request?(data)
+        payload = data["payload"]
+        return false unless payload.is_a?(Hash)
+
+        payload["method"] && payload["path"] && payload["status"]
       end
 
       def self.normalize_message(message)
@@ -122,53 +141,50 @@ module LogBench
         match[1] if match
       end
 
-      # Register job enqueue in State
-      def self.register_job_enqueue(entry)
-        return unless entry.is_a?(JobEnqueueEntry)
-        return unless defined?(App::State)
+      class << self
+        private
 
-        # If entry has a request_id, use it directly
-        request_id = entry.request_id
+        def register_job_enqueue(entry)
+          return unless entry.is_a?(JobEnqueueEntry)
+          return unless defined?(App::State)
 
-        # If no request_id, check if this enqueue happened inside another job
-        # by looking at the tags to find the parent job's request_id
-        if !request_id && entry.respond_to?(:json_data)
-          tags = entry.json_data["tags"]
-          parent_job_id, _parent_job_class = extract_job_info_from_tags(tags)
-          request_id = App::State.instance.request_id_for_job(parent_job_id) if parent_job_id
+          request_id = entry.request_id
+
+          if !request_id && entry.respond_to?(:json_data)
+            tags = entry.json_data["tags"]
+            parent_job_id, _parent_job_class = extract_job_info_from_tags(tags)
+            request_id = App::State.instance.request_id_for_job(parent_job_id) if parent_job_id
+          end
+
+          App::State.instance.register_job_enqueue(entry.job_id, request_id)
         end
 
-        App::State.instance.register_job_enqueue(entry.job_id, request_id)
-      end
+        def enrich_job_entry(entry)
+          return unless entry.respond_to?(:json_data)
 
-      # Enrich job execution logs with request_id and colored prefix
-      def self.enrich_job_entry(entry)
-        return unless entry.respond_to?(:json_data)
+          tags = entry.json_data["tags"]
+          job_id, job_class = extract_job_info_from_tags(tags)
+          return unless job_id
 
-        tags = entry.json_data["tags"]
-        job_id, job_class = extract_job_info_from_tags(tags)
-        return unless job_id
+          add_job_prefix_to_entry(entry, job_id, job_class)
+          add_request_id_to_entry(entry, job_id)
+        end
 
-        add_job_prefix_to_entry(entry, job_id, job_class)
-        add_request_id_to_entry(entry, job_id)
-      end
+        def add_job_prefix_to_entry(entry, job_id, job_class)
+          return if entry.content.match?(/\[[\w:]+#[^\]]+\]/)
 
-      # Add colored job prefix to entry content
-      def self.add_job_prefix_to_entry(entry, job_id, job_class)
-        return if entry.content.match?(/\[[\w:]+#[^\]]+\]/)
+          job_prefix = build_colored_job_prefix(job_class, job_id)
+          new_content = "#{job_prefix} #{entry.content}"
+          entry.instance_variable_set(:@content, new_content)
+        end
 
-        job_prefix = build_colored_job_prefix(job_class, job_id)
-        new_content = "#{job_prefix} #{entry.content}"
-        entry.instance_variable_set(:@content, new_content)
-      end
+        def add_request_id_to_entry(entry, job_id)
+          return if entry.request_id
+          return unless defined?(App::State)
 
-      # Add request_id to entry from State
-      def self.add_request_id_to_entry(entry, job_id)
-        return if entry.request_id
-        return unless defined?(App::State)
-
-        request_id = App::State.instance.request_id_for_job(job_id)
-        entry.instance_variable_set(:@request_id, request_id) if request_id
+          request_id = App::State.instance.request_id_for_job(job_id)
+          entry.instance_variable_set(:@request_id, request_id) if request_id
+        end
       end
     end
   end

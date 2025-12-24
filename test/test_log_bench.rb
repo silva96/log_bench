@@ -148,6 +148,36 @@ class TestLogBench < Minitest::Test
     assert_respond_to validator, :validate_rails_config!
   end
 
+  def test_configuration_validator_returns_true_when_disabled
+    # When LogBench is disabled, validation should pass without checking logger config
+    LogBench.setup { |config| config.enabled = false }
+
+    validator = LogBench::ConfigurationValidator.new
+    assert validator.validate_rails_config!
+  ensure
+    LogBench.setup { |config| config.enabled = true }
+  end
+
+  def test_configuration_validator_error_configs_are_frozen
+    # Error configs should be immutable
+    assert LogBench::ConfigurationValidator::LOGRAGE_ERROR_CONFIGS.frozen?
+    assert LogBench::ConfigurationValidator::SEMANTIC_LOGGER_ERROR_CONFIGS.frozen?
+  end
+
+  def test_configuration_validator_lograge_errors_have_required_fields
+    LogBench::ConfigurationValidator::LOGRAGE_ERROR_CONFIGS.each do |key, config|
+      assert config[:title], "Lograge error #{key} should have a title"
+      assert config[:description], "Lograge error #{key} should have a description"
+    end
+  end
+
+  def test_configuration_validator_semantic_logger_errors_have_required_fields
+    LogBench::ConfigurationValidator::SEMANTIC_LOGGER_ERROR_CONFIGS.each do |key, config|
+      assert config[:title], "SemanticLogger error #{key} should have a title"
+      assert config[:description], "SemanticLogger error #{key} should have a description"
+    end
+  end
+
   def test_json_formatter_implements_rails_logger_interface
     formatter = LogBench::JsonFormatter.new
 
@@ -552,5 +582,315 @@ class TestLogBench < Minitest::Test
 
     assert_equal "Test message with array", entry.content
     assert_instance_of String, entry.content
+  end
+
+  # SemanticLogger tests
+  def test_parse_semantic_logger_json
+    collection = LogBench::Log::Collection.new([TestFixtures.semantic_logger_get_request])
+    requests = collection.requests
+
+    assert_equal 1, requests.size
+    request = requests.first
+    assert_instance_of LogBench::Log::Request, request
+    assert_equal "GET", request.method
+    assert_equal "/users", request.path
+    assert_equal 200, request.status
+    assert_equal 45.2, request.duration
+    assert_equal "abc123", request.request_id
+  end
+
+  def test_parse_semantic_logger_with_sql
+    collection = LogBench::Log::Collection.new(TestFixtures.semantic_logger_request_with_sql)
+    requests = collection.requests
+
+    assert_equal 1, requests.size
+    request = requests.first
+    assert_equal 1, request.queries.size
+
+    query = request.queries.first
+    assert_instance_of LogBench::Log::QueryEntry, query
+    assert query.select?
+    assert_equal 1.2, query.duration_ms
+  end
+
+  def test_parse_semantic_logger_with_cache
+    collection = LogBench::Log::Collection.new(TestFixtures.semantic_logger_request_with_cache)
+    requests = collection.requests
+
+    assert_equal 1, requests.size
+    request = requests.first
+    assert_equal 1, request.cache_operations.size
+
+    cache_op = request.cache_operations.first
+    assert_instance_of LogBench::Log::QueryEntry, cache_op
+    assert cache_op.cached?
+    assert cache_op.hit?
+    assert_equal 0.1, cache_op.duration_ms
+  end
+
+  def test_parse_semantic_logger_with_hash_params
+    collection = LogBench::Log::Collection.new([TestFixtures.semantic_logger_post_request])
+    requests = collection.requests
+
+    assert_equal 1, requests.size
+    request = requests.first
+    assert_instance_of LogBench::Log::Request, request
+
+    # Check that params are parsed correctly
+    refute_nil request.params
+    assert_instance_of Hash, request.params
+    assert_equal "1", request.params["id"]
+    assert_equal "John Doe", request.params["user"]["name"]
+    assert_equal "john@example.com", request.params["user"]["email"]
+  end
+
+  def test_semantic_logger_request_detection
+    # Test that semantic_logger_request? correctly identifies SemanticLogger format
+    json_data = JSON.parse(TestFixtures.semantic_logger_get_request)
+    assert LogBench::Log::Parser.semantic_logger_request?(json_data)
+    assert LogBench::Log::Parser.http_request?(json_data)
+  end
+
+  def test_lograge_request_detection
+    # Test that lograge_request? correctly identifies lograge format
+    json_data = JSON.parse(TestFixtures.lograge_get_request)
+    assert LogBench::Log::Parser.lograge_request?(json_data)
+    assert LogBench::Log::Parser.http_request?(json_data)
+  end
+
+  def test_semantic_logger_entry_request_id_extraction
+    # Test that request_id is extracted from payload
+    json_data = JSON.parse(TestFixtures.semantic_logger_get_request)
+    entry = LogBench::Log::Entry.new(json_data)
+    assert_equal "abc123", entry.request_id
+  end
+
+  def test_semantic_logger_named_tags_request_id_extraction
+    # Test that request_id is extracted from named_tags (SemanticLogger feature)
+    json_data = {
+      "timestamp" => "2025-12-15T18:48:24.378004Z",
+      "level" => "debug",
+      "name" => "Rack",
+      "message" => "Started",
+      "named_tags" => {"request_id" => "named-tag-123"},
+      "payload" => {"method" => "GET", "path" => "/"}
+    }
+    entry = LogBench::Log::Entry.new(json_data)
+    assert_equal "named-tag-123", entry.request_id
+  end
+
+  def test_mixed_lograge_and_semantic_logger_parsing
+    # Test that both formats can be parsed in the same collection
+    mixed_logs = [
+      TestFixtures.lograge_get_request,
+      TestFixtures.semantic_logger_post_request
+    ]
+    collection = LogBench::Log::Collection.new(mixed_logs)
+    requests = collection.requests
+
+    assert_equal 2, requests.size
+    assert_equal "GET", requests[0].method
+    assert_equal "POST", requests[1].method
+  end
+
+  def test_configuration_logger_type_can_be_set_via_setup
+    # Reset configuration to default
+    LogBench.configuration = nil
+
+    # Test setting logger_type via setup block
+    LogBench.setup do |config|
+      config.logger_type = :semantic_logger
+    end
+
+    assert_equal :semantic_logger, LogBench.configuration.logger_type
+
+    # Reset to default for other tests
+    LogBench.setup do |config|
+      config.logger_type = :lograge
+    end
+  end
+
+  def test_configuration_logger_type_defaults_to_lograge
+    # Create a fresh configuration
+    config = LogBench::Configuration.new
+
+    assert_equal :lograge, config.logger_type
+  end
+
+  # Human-readable SemanticLogger converter tests
+  def test_human_readable_semantic_logger_detection
+    human_readable_line = "2025-11-19 23:54:33.339411 \e[36mI\e[0m [1085:33304] \e[36mRails\e[0m -- Initializing AppLabels"
+    assert LogBench::Log::Parsers::SemanticLoggerParser.human_readable?(human_readable_line)
+
+    json_line = '{"timestamp":"2025-01-01T10:00:00Z","level":"info","message":"test"}'
+    refute LogBench::Log::Parsers::SemanticLoggerParser.human_readable?(json_line)
+  end
+
+  def test_convert_semantic_logger_to_json
+    human_readable_line = "2025-11-19 23:54:33.339411 \e[36mI\e[0m [1085:33304] \e[36mRails\e[0m -- Initializing AppLabels"
+    json_string = LogBench::Log::Parsers::SemanticLoggerParser.convert_to_json(human_readable_line)
+
+    refute_nil json_string
+    data = JSON.parse(json_string)
+
+    assert_equal "2025-11-19 23:54:33.339411", data["timestamp"]
+    assert_equal "info", data["level"]
+    assert_equal "Rails", data["name"]
+    assert_equal "Initializing AppLabels", data["message"]
+  end
+
+  def test_parse_human_readable_semantic_logger_line
+    # Set logger type to semantic_logger for this test
+    original_logger_type = LogBench.configuration&.logger_type
+    LogBench.setup do |config|
+      config.logger_type = :semantic_logger
+    end
+
+    human_readable_line = "2025-11-19 23:54:33.339411 \e[32mD\e[0m [1085:33304] \e[32mRails\e[0m -- Sidekiq context: false"
+    entry = LogBench::Log::Parser.parse_line(human_readable_line)
+
+    refute_nil entry
+    assert_instance_of LogBench::Log::Entry, entry
+    assert_equal "Sidekiq context: false", entry.content
+  ensure
+    # Reset logger type
+    LogBench.setup do |config|
+      config.logger_type = original_logger_type || :lograge
+    end
+  end
+
+  def test_strip_ansi_codes
+    text_with_ansi = "\e[36mRails\e[0m"
+    stripped = LogBench::Log::Parsers::SemanticLoggerParser.strip_ansi_codes(text_with_ansi)
+
+    assert_equal "Rails", stripped
+  end
+
+  def test_level_mapping_from_single_letter
+    # Test Info level
+    info_line = "2025-11-19 23:54:33.339411 \e[36mI\e[0m [1085:33304] \e[36mRails\e[0m -- Info message"
+    json = LogBench::Log::Parsers::SemanticLoggerParser.convert_to_json(info_line)
+    data = JSON.parse(json)
+    assert_equal "info", data["level"]
+
+    # Test Debug level
+    debug_line = "2025-11-19 23:54:33.339411 \e[32mD\e[0m [1085:33304] \e[32mRails\e[0m -- Debug message"
+    json = LogBench::Log::Parsers::SemanticLoggerParser.convert_to_json(debug_line)
+    data = JSON.parse(json)
+    assert_equal "debug", data["level"]
+
+    # Test Error level
+    error_line = "2025-11-19 23:54:33.339411 \e[31mE\e[0m [1085:33304] \e[31mRails\e[0m -- Error message"
+    json = LogBench::Log::Parsers::SemanticLoggerParser.convert_to_json(error_line)
+    data = JSON.parse(json)
+    assert_equal "error", data["level"]
+  end
+
+  def test_strip_ruby_logger_wrapper
+    wrapped_line = "I, [2025-11-20T15:51:32.434612 #161]  INFO -- : 2025-11-20 15:51:32.434402 [36mI[0m [161:puma] [36mRails[0m -- Test"
+    stripped = LogBench::Log::Parsers::SemanticLoggerParser.strip_ruby_logger_wrapper(wrapped_line)
+
+    assert_equal "2025-11-20 15:51:32.434402 [36mI[0m [161:puma] [36mRails[0m -- Test", stripped
+
+    # Test with line that doesn't have wrapper
+    unwrapped_line = "2025-11-20 15:51:32.434402 [36mI[0m [161:puma] [36mRails[0m -- Test"
+    stripped2 = LogBench::Log::Parsers::SemanticLoggerParser.strip_ruby_logger_wrapper(unwrapped_line)
+    assert_equal unwrapped_line, stripped2
+  end
+
+  def test_extract_value_from_hash
+    hash_str = '{method: "GET", path: "/test", status: 200, controller: "TestController"}'
+
+    assert_equal "GET", LogBench::Log::Parsers::SemanticLoggerParser.extract_value_from_hash(hash_str, "method")
+    assert_equal "/test", LogBench::Log::Parsers::SemanticLoggerParser.extract_value_from_hash(hash_str, "path")
+    assert_equal "200", LogBench::Log::Parsers::SemanticLoggerParser.extract_value_from_hash(hash_str, "status")
+    assert_equal "TestController", LogBench::Log::Parsers::SemanticLoggerParser.extract_value_from_hash(hash_str, "controller")
+    assert_nil LogBench::Log::Parsers::SemanticLoggerParser.extract_value_from_hash(hash_str, "nonexistent")
+  end
+
+  def test_convert_semantic_logger_completed_request
+    completed_line = '2025-11-19 23:55:26.926956 [36mI[0m [1176:puma srv tp 001] {[36mrequest_id: 4e55e219-6f8e-45f0-9556-4b0bc69adbd9[0m} ([1m203.2ms[0m) [36mPortal::SessionsController[0m -- Completed #new -- {controller: "Portal::SessionsController", action: "new", method: "GET", path: "/portal/users/sign_in", status: 200}'
+
+    json_string = LogBench::Log::Parsers::SemanticLoggerParser.send(:convert_completed_request, completed_line)
+    refute_nil json_string
+
+    data = JSON.parse(json_string)
+    assert_equal "info", data["level"]
+    assert_equal "Completed", data["message"]
+    assert_equal 203.2, data["duration_ms"]
+
+    payload = data["payload"]
+    assert_equal "GET", payload["method"]
+    assert_equal "/portal/users/sign_in", payload["path"]
+    assert_equal 200, payload["status"]
+    assert_equal "Portal::SessionsController", payload["controller"]
+    assert_equal "new", payload["action"]
+    assert_equal "4e55e219-6f8e-45f0-9556-4b0bc69adbd9", payload["request_id"]
+  end
+
+  def test_parse_wrapped_semantic_logger_completed_request
+    # Set logger type
+    LogBench.setup { |config| config.logger_type = :semantic_logger }
+
+    wrapped_line = 'I, [2025-11-20T15:51:32.434612 #161]  INFO -- : 2025-11-20 15:51:32.434402 [36mI[0m [161:puma srv tp 001] {[36mrequest_id: 3044f53b-1e3a-4304-8ab0-4be35046f200[0m} ([1m24.3ms[0m) [36mDox::Frontend::AuthContext::ContextsController[0m -- Completed #show -- {controller: "Dox::Frontend::AuthContext::ContextsController", method: "GET", path: "/dox/auth/context", status: 200}'
+
+    entry = LogBench::Log::Parser.parse_line(wrapped_line)
+
+    refute_nil entry
+    assert_instance_of LogBench::Log::Request, entry
+    assert_equal "GET", entry.method
+    assert_equal "/dox/auth/context", entry.path
+    assert_equal 200, entry.status
+    assert_equal 24.3, entry.duration
+    assert_equal "3044f53b-1e3a-4304-8ab0-4be35046f200", entry.request_id
+  ensure
+    LogBench.setup { |config| config.logger_type = :lograge }
+  end
+
+  def test_http_request_method_detects_both_formats
+    # Test lograge format
+    lograge_data = {"method" => "GET", "path" => "/test", "status" => 200}
+    assert LogBench::Log::Parser.http_request?(lograge_data)
+
+    # Test semantic_logger JSON format
+    semantic_data = {"payload" => {"method" => "GET", "path" => "/test", "status" => 200}}
+    assert LogBench::Log::Parser.http_request?(semantic_data)
+
+    # Test non-request data
+    other_data = {"message" => "some log"}
+    refute LogBench::Log::Parser.http_request?(other_data)
+  end
+
+  def test_wrapped_format_detection
+    wrapped_line = "I, [2025-11-20T15:51:32.434612 #161]  INFO -- : 2025-11-20 15:51:32.434402 [36mI[0m [161:puma] [36mRails[0m -- Test"
+    assert LogBench::Log::Parsers::SemanticLoggerParser.human_readable?(wrapped_line)
+
+    unwrapped_line = "2025-11-20 15:51:32.434402 [36mI[0m [161:puma] [36mRails[0m -- Test"
+    assert LogBench::Log::Parsers::SemanticLoggerParser.human_readable?(unwrapped_line)
+
+    json_line = '{"timestamp":"2025-01-01T10:00:00Z","message":"test"}'
+    refute LogBench::Log::Parsers::SemanticLoggerParser.human_readable?(json_line)
+  end
+
+  def test_duration_extraction_seconds_to_milliseconds
+    # Test with seconds (should convert to ms)
+    line_with_seconds = '2025-11-19 23:55:26.699664 [36mI[0m [1176:puma] {[36mrequest_id: abc123[0m} ([1m2.026s[0m) [36mController[0m -- Completed #show -- {method: "GET", path: "/test", status: 200}'
+
+    json = LogBench::Log::Parsers::SemanticLoggerParser.send(:convert_completed_request, line_with_seconds)
+    data = JSON.parse(json)
+
+    assert_in_delta 2026.0, data["duration_ms"], 0.001
+  end
+
+  def test_request_id_extraction_from_tags
+    line_with_tags = "2025-11-19 23:55:26.075679 [32mD[0m [1176:puma] {[32mrequest_id: 710d8f41-356b-4f00-8b9d-d3d341b3d145[0m, [32mmethod: GET[0m]} [32mRack[0m -- Started"
+
+    LogBench.setup { |config| config.logger_type = :semantic_logger }
+    entry = LogBench::Log::Parser.parse_line(line_with_tags)
+
+    refute_nil entry
+    assert_equal "710d8f41-356b-4f00-8b9d-d3d341b3d145", entry.request_id
+  ensure
+    LogBench.setup { |config| config.logger_type = :lograge }
   end
 end

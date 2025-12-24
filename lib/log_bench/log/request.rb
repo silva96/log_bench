@@ -9,13 +9,17 @@ module LogBench
         super(json_data)
         self.type = :http_request
         self.related_logs = []
-        self.method = json_data["method"]
-        self.path = json_data["path"]
-        self.status = json_data["status"]
-        self.duration = json_data["duration"]
-        self.controller = json_data["controller"]
-        self.action = json_data["action"]
-        self.params = parse_params(json_data["params"])
+
+        # Extract fields from either top-level (lograge) or payload (semantic_logger)
+        source = json_data["payload"] || json_data
+
+        self.method = source["method"]
+        self.path = source["path"]
+        self.status = source["status"]
+        self.duration = extract_duration(json_data, source)
+        self.controller = source["controller"]
+        self.action = source["action"]
+        self.params = parse_params(source["params"])
         self.orphan = orphan
       end
 
@@ -81,6 +85,11 @@ module LogBench
         @query_count = nil
         @total_query_time = nil
         @cached_query_count = nil
+      end
+
+      def extract_duration(json_data, source)
+        # SemanticLogger uses duration_ms at top level, lograge uses duration in source
+        json_data["duration_ms"] || source["duration"]
       end
 
       def parse_params(params_data)

@@ -1,5 +1,4 @@
 require "rails/railtie"
-require "lograge"
 
 module LogBench
   class Railtie < Rails::Railtie
@@ -37,10 +36,15 @@ module LogBench
       puts LINE
     end
 
-    # Configure lograge after the gem was already configured
-    initializer "log_bench.configure_lograge", after: "log_bench.configure" do |app|
+    # Configure logger after the gem was already configured
+    initializer "log_bench.configure_logger", after: "log_bench.configure" do |app|
       if LogBench.configuration.enabled
-        LogBench::Railtie.setup_lograge(app)
+        case LogBench.configuration.logger_type
+        when :lograge
+          LogBench::Railtie.setup_lograge(app)
+        when :semantic_logger
+          LogBench::Railtie.setup_semantic_logger(app)
+        end
       end
     end
 
@@ -55,8 +59,9 @@ module LogBench
 
     class << self
       def setup_lograge(app)
-        return unless LogBench.configuration.configure_lograge_automatically
+        return unless LogBench.configuration.configure_logger_automatically
 
+        require "lograge"
         app.config.lograge.enabled = true
         app.config.lograge.formatter = Lograge::Formatters::Json.new
         app.config.lograge.custom_options = lambda do |event|
@@ -65,8 +70,14 @@ module LogBench
         end
       end
 
+      def setup_semantic_logger(app)
+        return unless LogBench.configuration.configure_logger_automatically
+        return unless defined?(SemanticLogger)
+
+        SemanticLogger.application = Rails.application.class.module_parent_name.underscore
+      end
+
       def setup_current_attributes
-        # Inject Current.request_id into base controllers
         LogBench.configuration.base_controller_classes.each do |controller_class_name|
           controller_class = controller_class_name.safe_constantize
           next unless controller_class
@@ -76,10 +87,8 @@ module LogBench
       end
 
       def setup_rails_logger_final
-        # Get the underlying logger (unwrap TaggedLogging if present)
         base_logger = Rails.logger.respond_to?(:logger) ? Rails.logger.logger : Rails.logger
         base_logger.formatter = LogBench::JsonFormatter.new
-        # Re-wrap with TaggedLogging to maintain Rails compatibility
         Rails.logger = ActiveSupport::TaggedLogging.new(base_logger)
       end
 
@@ -103,7 +112,6 @@ module LogBench
         require "sidekiq/middleware/current_attributes"
         Sidekiq::CurrentAttributes.persist("LogBench::Current")
 
-        # Add our custom middleware to capture job ID
         Sidekiq.configure_server do |config|
           config.server_middleware do |chain|
             chain.add LogBench::SidekiqMiddleware
@@ -111,7 +119,6 @@ module LogBench
         end
       end
 
-      # Validate that LogBench setup worked correctly
       def validate_configuration!
         ConfigurationValidator.validate_rails_config!
       rescue ConfigurationValidator::ConfigurationError => e

@@ -70,4 +70,29 @@ module TestFixtures
   def self.request_with_null_message_logs
     [lograge_get_request, log_entry_with_null_message, log_entry_with_missing_message]
   end
+
+  # SemanticLogger fixtures
+  def self.semantic_logger_get_request
+    '{"name":"Rails","level":"info","message":"Completed","duration_ms":45.2,"timestamp":"2025-01-01T10:00:00Z","payload":{"method":"GET","path":"/users","status":200,"controller":"UsersController","action":"index","request_id":"abc123"}}'
+  end
+
+  def self.semantic_logger_post_request
+    '{"name":"Rails","level":"info","message":"Completed","duration_ms":120.5,"timestamp":"2025-01-01T10:01:00Z","payload":{"method":"POST","path":"/users","status":201,"controller":"UsersController","action":"create","params":{"id":"1","user":{"name":"John Doe","email":"john@example.com"}},"request_id":"abc456"}}'
+  end
+
+  def self.semantic_logger_sql_query
+    '{"name":"ActiveRecord","level":"debug","message":"  \u001b[1m\u001b[36mUser Load (1.2ms)\u001b[0m  \u001b[1m\u001b[34mSELECT `users`.* FROM `users` WHERE `users`.`id` = 1 LIMIT 1\u001b[0m","request_id":"abc123","timestamp":"2025-01-01T10:00:01Z"}'
+  end
+
+  def self.semantic_logger_cache_entry
+    '{"name":"ActiveRecord","level":"debug","message":"CACHE User Load (0.1ms)  SELECT `users`.* FROM `users` WHERE `users`.`id` = 1 LIMIT 1","request_id":"abc123","timestamp":"2025-01-01T10:00:01Z"}'
+  end
+
+  def self.semantic_logger_request_with_sql
+    [semantic_logger_get_request, semantic_logger_sql_query]
+  end
+
+  def self.semantic_logger_request_with_cache
+    [semantic_logger_get_request, semantic_logger_cache_entry]
+  end
 end

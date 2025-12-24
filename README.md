@@ -32,7 +32,7 @@ bundle install
 
 ## Configuration
 
-LogBench is **automatically enabled in development environment** for backward compatibility. This gem heavily relies on [lograge](https://github.com/roidrage/lograge) gem for request tracking, we add lograge to your Rails application and configure it automatically, but you can also configure lograge manually if you want.
+LogBench is **automatically enabled in development environment** for backward compatibility. This gem supports both [lograge](https://github.com/roidrage/lograge) (default) and [SemanticLogger](https://logger.rocketjob.io/) for request tracking.
 
 ### Default Behavior
 
@@ -56,33 +56,36 @@ if defined?(LogBench)
   LogBench.setup do |config|
     # Enable/disable LogBench (default: true in development, false elsewhere)
     config.enabled = Rails.env.development? # or any other condition
-  
-    # Disable automatic lograge configuration (if you want to configure lograge manually)
-    # config.configure_lograge_automatically = false  # (default: true)
+
+    # Choose logger type: :lograge (default) or :semantic_logger
+    # config.logger_type = :lograge  # (default: :lograge)
+
+    # Disable automatic logger configuration (if you want to configure the logger manually)
+    # config.configure_logger_automatically = false  # (default: true)
 
     # Customize initialization message
     # config.show_init_message = :min # :full, :min, or :none (default: :full)
-  
+
     # Specify which controllers to inject request_id tracking
     # config.base_controller_classes = %w[CustomBaseController] # (default: %w[ApplicationController ActionController::Base])
   end
 end
 ```
 
-### Manual Lograge Configuration
+### Manual Logger Configuration
 
-If you already have lograge configured or want to manage it manually:
+If you already have your logger configured or want to manage it manually:
 
 ```ruby
 # config/initializers/log_bench.rb
 if defined?(LogBench)
   LogBench.setup do |config|
     # ... other config ...
-    config.configure_lograge_automatically = false  # Don't touch my lograge config!
+    config.configure_logger_automatically = false  # Don't touch my logger config!
   end
 end
 
-# Then configure lograge yourself in config/environments/development.rb or an initializer, 
+# Then configure your logger yourself in config/environments/development.rb or an initializer, 
 
 Rails.application.configure do
   config.lograge.enabled = true
@@ -96,6 +99,61 @@ end
 ```
 For more information about lograge configuration, see [Lograge's documentation](https://github.com/roidrage/lograge).
 
+### Using SemanticLogger
+
+SemanticLogger is an alternative to Lograge that's recommended by Datadog and provides rich JSON-formatted logs. To use SemanticLogger with LogBench:
+
+**1. Add the gem to your Gemfile:**
+
+```ruby
+gem 'rails_semantic_logger'
+```
+
+**2. Configure LogBench to use SemanticLogger:**
+
+```ruby
+# config/initializers/log_bench.rb
+if defined?(LogBench)
+  LogBench.setup do |config|
+    config.logger_type = :semantic_logger
+  end
+end
+```
+
+**3. Configure SemanticLogger for JSON output with request_id tracking:**
+
+```ruby
+# config/environments/development.rb (or any environment)
+Rails.application.configure do
+  # Use JSON format for file appender
+  config.rails_semantic_logger.format = :json
+
+  # Optional: Configure log level
+  config.log_level = :debug
+
+  # IMPORTANT: Add request_id to log tags (Rails 5+)
+  # This is the official rails_semantic_logger approach for request tracking
+  # See: https://logger.rocketjob.io/rails.html
+  config.log_tags = {
+    request_id: :request_id
+  }
+  # Note: Rails 4.2 users should use :uuid instead of :request_id
+end
+```
+
+**Note:** The `config.log_tags` configuration is the official rails_semantic_logger approach for adding request tracking. It automatically includes the `request_id` in every log entry's `named_tags` field, which LogBench uses to correlate logs from the same HTTP request.
+
+**Why use SemanticLogger?**
+
+- **Datadog compatibility**: Datadog recommends SemanticLogger for better log ingestion ([GitHub issue #55](https://github.com/silva96/log_bench/issues/55))
+- **Rich context**: Automatically includes thread names, process IDs, and other contextual information
+- **Performance**: Asynchronous logging support for high-throughput applications
+- **Flexibility**: Works with various appenders and formatters
+
+LogBench seamlessly supports both lograge and SemanticLogger formats - you can even parse logs from both in the same session!
+
+For more information about SemanticLogger configuration, see [SemanticLogger's documentation](https://logger.rocketjob.io/).
+
 ## Usage
 
 ### Basic Usage
@@ -106,7 +164,20 @@ View your development logs:
 log_bench
 # or explicitly for a specific log file
 log_bench log/development.log
+
+# Specify logger format via CLI
+log_bench --logger_type=semantic_logger
+log_bench log/development.log --logger_type=lograge
+
+# View help
+log_bench --help
 ```
+
+#### CLI Options
+
+- `--logger_type=TYPE` - Specify logger format: `lograge` or `semantic_logger` (default: `lograge`)
+- `--help`, `-h` - Show help message
+- `--version`, `-v` - Show version
 
 ### TUI Controls
 
@@ -167,7 +238,11 @@ LogBench provides multiple ways to copy content:
 
 ## Log Format
 
-LogBench works with JSON-formatted logs. Each log entry should include:
+LogBench works with JSON-formatted logs from both Lograge and SemanticLogger.
+
+### Lograge Format
+
+Lograge produces flat JSON with fields at the top level:
 
 **Required fields for HTTP requests:**
 - `method`: HTTP method (GET, POST, etc.)
@@ -179,13 +254,34 @@ LogBench works with JSON-formatted logs. Each log entry should include:
 **Optional fields:**
 - `controller`: Controller name
 - `action`: Action name
+- `params`: Request parameters
 - `allocations`: Memory allocations
 - `view`: View rendering time
 - `db`: Database query time
 
-**Other query logs:**
+### SemanticLogger Format
+
+SemanticLogger produces nested JSON with request details in a `payload` object:
+
+**Required fields for HTTP requests:**
+- `payload.method`: HTTP method (GET, POST, etc.)
+- `payload.path`: Request path
+- `payload.status`: HTTP status code
+- `payload.request_id`: Unique request identifier
+- `duration_ms`: Request duration in milliseconds (top-level)
+
+**Optional fields:**
+- `payload.controller`: Controller name
+- `payload.action`: Action name
+- `payload.params`: Request parameters
+- `name`: Logger name (e.g., "Rails", "ActiveRecord")
+- `level`: Log level (info, debug, etc.)
+
+### SQL and Other Logs
+
+Both formats support related logs:
 - `message`: SQL query with timing information
-- `request_id`: Links query to HTTP request
+- `request_id`: Links query to HTTP request (top-level or in payload)
 
 ## Job Logging
 

@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.authors = ["Benjamín Silva"]
 
   spec.summary = "A terminal-based Rails log viewer with real-time monitoring and filtering capabilities"
-  spec.description = "LogBench is a well-structured Ruby gem for parsing and analyzing Rails log files with a focus on lograge format. Features include real-time log monitoring, interactive TUI with filtering and sorting, domain objects for clean code organization, and support for SQL query analysis."
+  spec.description = "LogBench is a well-structured Ruby gem for parsing and analyzing Rails log files. Supports both Lograge and SemanticLogger formats. Features include real-time log monitoring, interactive TUI with filtering and sorting, domain objects for clean code organization, and support for SQL query analysis."
   spec.homepage = "https://github.com/silva96/log_bench"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.1.0"

@@ -3,19 +3,28 @@
 
 require_relative "../lib/log_bench"
 
+# Initialize configuration for standalone usage
+LogBench.setup unless LogBench.configuration
+
 def show_help
   puts <<~HELP
     LogBench - Rails Log Viewer
 
     Usage:
-      log_bench [log_file]
+      log_bench [log_file] [options]
       log_bench --help
       log_bench --version
 
+    Options:
+      --logger_type=TYPE    Specify logger format: lograge or semantic_logger
+                            (default: lograge)
+
     Examples:
-      log_bench                           # View log/development.log
-      log_bench log/production.log        # View specific log file
-      log_bench /path/to/app/log/test.log  # View log from another app
+      log_bench                                    # View log/development.log (lograge)
+      log_bench log/production.log                 # View specific log file
+      log_bench /path/to/app/log/test.log          # View log from another app
+      log_bench --logger_type=semantic_logger      # Use SemanticLogger format
+      log_bench log/dev.log --logger_type=lograge  # Specify both file and logger
 
     Setup (for Rails apps):
       LogBench is automatically enabled in development!
@@ -32,18 +41,39 @@ def show_version
   puts "LogBench #{LogBench::VERSION}"
 end
 
-# Handle command line arguments
-case ARGV[0]
-when "--help", "-h"
-  show_help
-  exit 0
-when "--version", "-v"
-  show_version
-  exit 0
+# Parse command line arguments
+log_file = nil
+logger_type = nil
+
+ARGV.each do |arg|
+  case arg
+  when "--help", "-h"
+    show_help
+    exit 0
+  when "--version", "-v"
+    show_version
+    exit 0
+  when /^--logger_type=(.+)$/
+    logger_type = $1.to_sym
+    unless [:lograge, :semantic_logger].include?(logger_type)
+      puts "❌ Invalid logger type: #{logger_type}"
+      puts "Valid options: lograge, semantic_logger"
+      exit 1
+    end
+  else
+    log_file = arg unless arg.start_with?("--")
+  end
 end
 
 begin
-  log_file = ARGV[0] || "log/development.log"
+  log_file ||= "log/development.log"
+
+  # Set logger type if specified via CLI
+  if logger_type
+    LogBench.setup do |config|
+      config.logger_type = logger_type
+    end
+  end
 
   # Check if log file exists
   unless File.exist?(log_file)
