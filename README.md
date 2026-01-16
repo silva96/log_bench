@@ -103,9 +103,9 @@ For more information about lograge configuration, see [Lograge's documentation](
 View your development logs:
 
 ```bash
-log_bench
+bundle exec log_bench
 # or explicitly for a specific log file
-log_bench log/development.log
+bundle exec log_bench log/development.log
 ```
 
 ### TUI Controls
