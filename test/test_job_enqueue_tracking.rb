@@ -293,6 +293,58 @@ class TestJobEnqueueTracking < Minitest::Test
     end
   end
 
+  # LogStruct format tests
+  def test_logstruct_job_schedule_detection
+    # LogStruct uses evt:"schedule" with src:"job"
+    data = {"src" => "job", "evt" => "schedule", "job_id" => "abc-123", "job_class" => "TestJob"}
+    assert LogBench::Log::Parser.job_enqueue_message?(data)
+
+    # Should not detect other job events as enqueue
+    start_data = {"src" => "job", "evt" => "start", "job_id" => "abc-123"}
+    refute LogBench::Log::Parser.job_enqueue_message?(start_data)
+
+    finish_data = {"src" => "job", "evt" => "finish", "job_id" => "abc-123"}
+    refute LogBench::Log::Parser.job_enqueue_message?(finish_data)
+  end
+
+  def test_logstruct_job_enqueue_extracts_job_id
+    # LogStruct has job_id as a direct field
+    logstruct_log = '{"src":"job","evt":"schedule","job_id":"79729d72-f0df-468e-a6da-9064ec9e845e","job_class":"TestJob","queue_name":"default","req_id":"8cc2f6c7-6fd9-4d41-8626-847a6f1c5bb9","ts":"2026-01-23T19:36:20.129+13:00"}'
+
+    entry = LogBench::Log::Parser.parse_line(logstruct_log)
+
+    assert_instance_of LogBench::Log::JobEnqueueEntry, entry
+    assert_equal "79729d72-f0df-468e-a6da-9064ec9e845e", entry.job_id
+    assert_equal "8cc2f6c7-6fd9-4d41-8626-847a6f1c5bb9", entry.request_id
+  end
+
+  def test_logstruct_job_enqueue_builds_readable_content
+    logstruct_log = '{"src":"job","evt":"schedule","job_id":"79729d72-f0df-468e-a6da-9064ec9e845e","job_class":"TestJob","queue_name":"default","scheduled_at":"2026-01-23T06:36:22Z","req_id":"8cc2f6c7-6fd9-4d41-8626-847a6f1c5bb9","ts":"2026-01-23T19:36:20.129+13:00"}'
+
+    entry = LogBench::Log::Parser.parse_line(logstruct_log)
+
+    assert_instance_of LogBench::Log::JobEnqueueEntry, entry
+    assert_equal "Enqueued TestJob (Job ID: 79729d72-f0df-468e-a6da-9064ec9e845e) to default at 2026-01-23T06:36:22Z", entry.content
+  end
+
+  def test_logstruct_job_enqueue_with_request
+    request_log = '{"src":"rails","evt":"request","method":"GET","path":"/","status":200,"duration_ms":62.57,"controller":"HomeController","action":"index","req_id":"8cc2f6c7-6fd9-4d41-8626-847a6f1c5bb9","ts":"2026-01-23T19:36:20.157+13:00"}'
+    schedule_log = '{"src":"job","evt":"schedule","job_id":"79729d72-f0df-468e-a6da-9064ec9e845e","job_class":"TestJob","queue_name":"default","req_id":"8cc2f6c7-6fd9-4d41-8626-847a6f1c5bb9","ts":"2026-01-23T19:36:20.129+13:00"}'
+
+    collection = LogBench::Log::Collection.new([request_log, schedule_log])
+    requests = collection.requests
+
+    assert_equal 1, requests.size
+    request = requests.first
+
+    job_enqueue_entries = request.related_logs.select { |log| log.is_a?(LogBench::Log::JobEnqueueEntry) }
+    assert_equal 1, job_enqueue_entries.size
+
+    job_enqueue = job_enqueue_entries.first
+    assert_equal "79729d72-f0df-468e-a6da-9064ec9e845e", job_enqueue.job_id
+    assert_equal "8cc2f6c7-6fd9-4d41-8626-847a6f1c5bb9", job_enqueue.request_id
+  end
+
   def test_deeply_nested_jobs_chain_request_id
     # Scenario: HTTP request → JobA → JobB → JobC (3 levels deep)
     request_id = "req-999"

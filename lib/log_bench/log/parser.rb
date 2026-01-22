@@ -70,7 +70,7 @@ module LogBench
       end
 
       def self.determine_json_type(data)
-        return :http_request if lograge_request?(data)
+        return :http_request if http_request?(data)
         return :cache if cache_message?(data)
         return :sql if sql_message?(data)
         return :sql_call_line if call_stack_message?(data)
@@ -79,8 +79,21 @@ module LogBench
         :other
       end
 
+      def self.http_request?(data)
+        lograge_request?(data) || logstruct_request?(data)
+      end
+
       def self.lograge_request?(data)
         data["method"] && data["path"] && data["status"]
+      end
+
+      def self.logstruct_request?(data)
+        # LogStruct uses "evt" field with value "request" or "req"
+        evt = data["evt"]
+        return false unless evt
+
+        evt_str = evt.to_s.downcase
+        evt_str == "request" || evt_str == "req"
       end
 
       def self.normalize_message(message)
@@ -96,23 +109,35 @@ module LogBench
         end
       end
 
+      def self.extract_message(data)
+        # LogStruct uses "msg", lograge/standard uses "message"
+        data["msg"] || data["message"]
+      end
+
       def self.sql_message?(data)
-        message = normalize_message(data["message"])
+        # LogStruct uses evt:"database" for structured SQL events
+        return true if data["evt"] == "database"
+
+        message = normalize_message(extract_message(data))
         %w[SELECT INSERT UPDATE DELETE TRANSACTION BEGIN COMMIT ROLLBACK SAVEPOINT].any? { |op| message.include?(op) }
       end
 
       def self.cache_message?(data)
-        message = normalize_message(data["message"])
+        message = normalize_message(extract_message(data))
         message.include?("CACHE")
       end
 
       def self.call_stack_message?(data)
-        message = normalize_message(data["message"])
+        message = normalize_message(extract_message(data))
         message.include?("↳")
       end
 
       def self.job_enqueue_message?(data)
-        message = normalize_message(data["message"])
+        # LogStruct uses evt:"schedule" with src:"job"
+        return true if data["evt"] == "schedule" && data["src"] == "job"
+
+        # Lograge format
+        message = normalize_message(extract_message(data))
         message.match?(/Enqueued .+ \(Job ID: .+\)/)
       end
 

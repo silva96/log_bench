@@ -12,7 +12,7 @@ module LogBench
         self.method = json_data["method"]
         self.path = json_data["path"]
         self.status = json_data["status"]
-        self.duration = json_data["duration"]
+        self.duration = extract_duration(json_data)
         self.controller = json_data["controller"]
         self.action = json_data["action"]
         self.params = parse_params(json_data["params"])
@@ -94,6 +94,11 @@ module LogBench
         end
       rescue JSON::ParserError
         params_data.to_s
+      end
+
+      def extract_duration(json_data)
+        # LogStruct uses "duration_ms", lograge uses "duration"
+        json_data["duration_ms"] || json_data["duration"]
       end
     end
   end

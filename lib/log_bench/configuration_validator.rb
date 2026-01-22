@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 module LogBench
-  # Validates that lograge is properly configured for LogBench
+  # Validates that the logger is properly configured for LogBench
   class ConfigurationValidator
     class ConfigurationError < StandardError; end
-    ERROR_CONFIGS = {
+
+    LOGRAGE_ERROR_CONFIGS = {
       enabled: {
         title: "Lograge is not enabled",
         description: "LogBench requires lograge to be enabled in your Rails application."
@@ -23,6 +24,17 @@ module LogBench
       }
     }.freeze
 
+    LOGSTRUCT_ERROR_CONFIGS = {
+      not_installed: {
+        title: "LogStruct gem is not installed",
+        description: "LogBench with logger_type: :logstruct requires the logstruct gem."
+      },
+      not_enabled: {
+        title: "LogStruct is not enabled",
+        description: "LogStruct must be enabled for LogBench to work."
+      }
+    }.freeze
+
     def self.validate_rails_config!
       new.validate_rails_config!
     end
@@ -31,32 +43,60 @@ module LogBench
       return true unless defined?(Rails) && Rails.application
       return true unless LogBench.configuration.enabled
 
-      validate_lograge_enabled!
-      validate_custom_options!
-      validate_lograge_formatter!
-      validate_logger_formatter!
+      if LogBench.configuration.logstruct?
+        validate_logstruct_config!
+      else
+        validate_lograge_config!
+      end
 
       true
     end
 
     private
 
+    def validate_logstruct_config!
+      validate_logstruct_installed!
+      validate_logstruct_enabled!
+    end
+
+    def validate_lograge_config!
+      validate_lograge_enabled!
+      validate_custom_options!
+      validate_lograge_formatter!
+      validate_logger_formatter!
+    end
+
+    def validate_logstruct_installed!
+      unless defined?(LogStruct)
+        raise ConfigurationError, build_logstruct_error_message(:not_installed)
+      end
+    end
+
+    def validate_logstruct_enabled!
+      return if LogStruct.config.enabled
+
+      raise ConfigurationError, build_logstruct_error_message(:not_enabled)
+    rescue NoMethodError
+      # LogStruct might not have config method in older versions
+      nil
+    end
+
     def validate_lograge_enabled!
       unless lograge_config&.enabled
-        raise ConfigurationError, build_error_message(:enabled)
+        raise ConfigurationError, build_lograge_error_message(:enabled)
       end
     end
 
     def validate_custom_options!
       unless lograge_config&.custom_options
-        raise ConfigurationError, build_error_message(:options)
+        raise ConfigurationError, build_lograge_error_message(:options)
       end
     end
 
     def validate_lograge_formatter!
       formatter = lograge_config&.formatter
       unless formatter.is_a?(Lograge::Formatters::Json)
-        raise ConfigurationError, build_error_message(:lograge_formatter)
+        raise ConfigurationError, build_lograge_error_message(:lograge_formatter)
       end
     end
 
@@ -67,7 +107,7 @@ module LogBench
       # Allow LogBench::JsonFormatter or any custom JSON formatter
       # Users might have their own JSON formatters that work with LogBench
       unless formatter.is_a?(LogBench::JsonFormatter)
-        raise ConfigurationError, build_error_message(:logger_formatter)
+        raise ConfigurationError, build_lograge_error_message(:logger_formatter)
       end
     end
 
@@ -76,8 +116,8 @@ module LogBench
       Rails.application.config.lograge
     end
 
-    def build_error_message(error_type)
-      config = ERROR_CONFIGS[error_type]
+    def build_lograge_error_message(error_type)
+      config = LOGRAGE_ERROR_CONFIGS[error_type]
 
       <<~ERROR
         ❌ #{config[:title]}
@@ -87,6 +127,22 @@ module LogBench
         This should be automatically configured by LogBench, but something went wrong.
 
         For complete setup: https://github.com/silva96/log_bench#configuration
+      ERROR
+    end
+
+    def build_logstruct_error_message(error_type)
+      config = LOGSTRUCT_ERROR_CONFIGS[error_type]
+
+      <<~ERROR
+        ❌ #{config[:title]}
+
+        #{config[:description]}
+
+        Make sure you have:
+        1. Added 'logstruct' to your Gemfile
+        2. LogStruct is enabled in your environment
+
+        For complete setup: https://github.com/DocSpring/logstruct
       ERROR
     end
   end
