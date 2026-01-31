@@ -39,6 +39,10 @@ module LogBench
           CallLineEntry.new(data)
         when :job_enqueue
           JobEnqueueEntry.new(data)
+        when :job_start
+          JobStartEntry.new(data)
+        when :job_finish
+          JobFinishEntry.new(data)
         else
           Entry.new(data)
         end
@@ -75,6 +79,8 @@ module LogBench
         return :sql if sql_message?(data)
         return :sql_call_line if call_stack_message?(data)
         return :job_enqueue if job_enqueue_message?(data)
+        return :job_start if job_start_message?(data)
+        return :job_finish if job_finish_message?(data)
 
         :other
       end
@@ -133,12 +139,22 @@ module LogBench
       end
 
       def self.job_enqueue_message?(data)
-        # LogStruct uses evt:"schedule" with src:"job"
-        return true if data["evt"] == "schedule" && data["src"] == "job"
+        # LogStruct uses evt:"schedule" or evt:"enqueue" with src:"job"
+        return true if (data["evt"] == "schedule" || data["evt"] == "enqueue") && data["src"] == "job"
 
         # Lograge format
         message = normalize_message(extract_message(data))
         message.match?(/Enqueued .+ \(Job ID: .+\)/)
+      end
+
+      def self.job_start_message?(data)
+        # LogStruct uses evt:"start" with src:"job"
+        data["evt"] == "start" && data["src"] == "job"
+      end
+
+      def self.job_finish_message?(data)
+        # LogStruct uses evt:"finish" with src:"job"
+        data["evt"] == "finish" && data["src"] == "job"
       end
 
       def self.extract_job_id_from_enqueue(message)
@@ -170,6 +186,18 @@ module LogBench
       def self.enrich_job_entry(entry)
         return unless entry.respond_to?(:json_data)
 
+        # For JobStartEntry and JobFinishEntry, use job_id directly
+        if entry.is_a?(JobStartEntry) || entry.is_a?(JobFinishEntry)
+          job_id = entry.job_id
+          job_class = entry.job_class
+          if job_id
+            add_job_prefix_to_entry(entry, job_id, job_class)
+            add_request_id_to_entry(entry, job_id)
+          end
+          return
+        end
+
+        # For other entries, try to extract job info from tags
         tags = entry.json_data["tags"]
         job_id, job_class = extract_job_info_from_tags(tags)
         return unless job_id
