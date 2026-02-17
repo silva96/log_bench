@@ -5,6 +5,7 @@ module LogBench
     module Renderer
       class Scrollbar
         include Curses
+        SCROLLBAR_THUMB_COLOR = Screen::HEADER_CYAN
 
         def initialize(screen)
           self.screen = screen
@@ -20,7 +21,7 @@ module LogBench
           height.times do |i|
             win.setpos(i + 1, x)
             if i >= scrollbar_pos && i < scrollbar_pos + scrollbar_height
-              win.attron(color_pair(1)) { win.addstr("█") }  # Solid block for scrollbar thumb
+              win.attron(color_pair(SCROLLBAR_THUMB_COLOR)) { win.addstr("█") }  # Solid block for scrollbar thumb
             end
           end
         end

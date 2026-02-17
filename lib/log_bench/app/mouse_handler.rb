@@ -5,9 +5,6 @@ module LogBench
     class MouseHandler
       include Curses
 
-      # UI constants
-      DEFAULT_VISIBLE_HEIGHT = 20
-
       def initialize(state, screen)
         self.state = state
         self.screen = screen
@@ -36,6 +33,16 @@ module LogBench
           # Switch to left pane if not already focused
           state.switch_to_left_pane unless state.left_pane_focused?
 
+          if click_on_column_header_row?(y)
+            handle_request_header_click(x)
+            return
+          end
+
+          if click_on_request_filter_row?(y)
+            handle_request_filter_click(x)
+            return
+          end
+
           # Convert click coordinates to request index
           request_index = click_to_request_index(y)
           return unless request_index
@@ -60,7 +67,7 @@ module LogBench
         # Header takes up first HEADER_HEIGHT lines
         # Request list starts at HEADER_HEIGHT + 1 (accounting for border)
         panel_width = screen.panel_width
-        header_height = 5 # Screen::HEADER_HEIGHT
+        header_height = Screen::HEADER_HEIGHT
 
         x >= 0 && x < panel_width && y > header_height
       end
@@ -69,8 +76,8 @@ module LogBench
         # Right pane starts after left panel + border width
         # From Screen: panel_width + PANEL_BORDER_WIDTH
         panel_width = screen.panel_width
-        border_width = 3 # Screen::PANEL_BORDER_WIDTH
-        header_height = 5 # Screen::HEADER_HEIGHT
+        border_width = Screen::PANEL_BORDER_WIDTH
+        header_height = Screen::HEADER_HEIGHT
 
         right_pane_start = panel_width + border_width
 
@@ -78,11 +85,10 @@ module LogBench
       end
 
       def click_to_request_index(y)
-        # Header takes up first 5 lines
-        # Request list has 1 line border at top, then 1 line for column headers
-        # So actual request rows start at y = 7 (5 header + 1 border + 1 column header)
-        header_height = 5
-        list_header_offset = 2 # border + column header
+        # Header takes up first 5 lines.
+        # Request list rows start at RequestList::ROWS_START_Y inside log_win.
+        header_height = screen_header_height
+        list_header_offset = Renderer::RequestList::ROWS_START_Y
 
         row_in_list = y - header_height - list_header_offset
         return nil if row_in_list < 0
@@ -91,9 +97,67 @@ module LogBench
         state.scroll_offset + row_in_list
       end
 
-      def visible_height
-        # Approximate visible height for calculations
-        DEFAULT_VISIBLE_HEIGHT
+      def click_on_request_filter_row?(y)
+        y == screen_header_height + Renderer::RequestList::FILTER_ROW_Y
+      end
+
+      def click_on_column_header_row?(y)
+        y == screen_header_height + Renderer::RequestList::COLUMN_HEADER_Y
+      end
+
+      def handle_request_header_click(x)
+        selected_column = request_header_column_for_x(x)
+        state.toggle_request_sort(selected_column) if selected_column
+      end
+
+      def request_header_column_for_x(x)
+        start_x = Renderer::RequestList::HEADER_Y_OFFSET
+        method_width = Renderer::RequestList::METHOD_WIDTH
+        path_width = screen.panel_width - Renderer::RequestList::PATH_MARGIN
+        status_width = Renderer::RequestList::STATUS_WIDTH
+
+        method_start = start_x
+        path_start = method_start + method_width
+        status_start = path_start + path_width
+        time_start = status_start + status_width
+
+        ranges = [
+          [:method, method_start...(method_start + method_width)],
+          [nil, path_start...(path_start + path_width)],
+          [:status, status_start...(status_start + status_width)],
+          [:time, time_start...screen.panel_width]
+        ]
+
+        ranges.each do |column, range|
+          return column if range.cover?(x)
+        end
+
+        nil
+      end
+
+      def handle_request_filter_click(x)
+        selected_column = request_filter_column_for_x(x)
+        state.exit_filter_mode
+        state.select_request_filter_column(selected_column) if selected_column
+        state.enter_filter_mode
+      end
+
+      def request_filter_column_for_x(x)
+        ranges = Renderer::RequestFilterBar.layout(
+          screen.panel_width,
+          header_x_offset: Renderer::RequestList::HEADER_Y_OFFSET,
+          method_width: Renderer::RequestList::METHOD_WIDTH
+        ).slice(:method, :path, :status, :time)
+
+        ranges.each do |column, range|
+          return column if range.cover?(x)
+        end
+
+        nil
+      end
+
+      def screen_header_height
+        Screen::HEADER_HEIGHT
       end
 
       def with_warnings_suppressed

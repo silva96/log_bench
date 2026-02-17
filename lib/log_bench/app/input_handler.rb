@@ -16,6 +16,7 @@ module LogBench
       CTRL_R = 18         # Undo clear requests (restore)
       ESC = 27            # Escape
       BACKSPACE_KEYS = [127, 8, KEY_BACKSPACE].freeze
+      SHIFT_TAB_KEYS = [353, defined?(KEY_BTAB) && KEY_BTAB].compact.uniq.freeze
       EXIT_FILTER_MODE_KEYS = [27, 10, 13].freeze # Escape, Enter, Return
 
       # UI constants
@@ -66,6 +67,10 @@ module LogBench
         case ch
         when *EXIT_FILTER_MODE_KEYS
           state.exit_filter_mode
+        when KEY_LEFT, *SHIFT_TAB_KEYS
+          handle_filter_left_navigation
+        when KEY_RIGHT, TAB
+          handle_filter_right_navigation
         when KEY_UP
           state.exit_filter_mode
           state.navigate_up
@@ -76,6 +81,18 @@ module LogBench
           state.backspace_filter
         else
           add_character_to_filter(ch)
+        end
+      end
+
+      def handle_filter_left_navigation
+        if state.filter_mode
+          state.previous_request_filter_column
+        end
+      end
+
+      def handle_filter_right_navigation
+        if state.filter_mode
+          state.next_request_filter_column
         end
       end
 

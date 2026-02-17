@@ -15,8 +15,8 @@ module LogBench
         TITLE_X_OFFSET = 2
 
         # Color constants
-        HEADER_CYAN = 1
-        SUCCESS_GREEN = 3
+        HEADER_CYAN = Screen::HEADER_CYAN
+        SUCCESS_GREEN = Screen::SUCCESS_GREEN
 
         def initialize(screen, state, log_file_name)
           self.screen = screen
@@ -50,7 +50,7 @@ module LogBench
         end
 
         def draw_stats
-          if state.main_filter.present?
+          if state.request_filters_present?
             draw_filtered_stats
           else
             draw_stats_panel
@@ -63,9 +63,9 @@ module LogBench
           total_requests = state.requests.size
           stats_text = "#{filtered_requests.size} found (#{total_requests} total)"
           header_win.setpos(1, screen.width - stats_text.length - 2)
-          header_win.attron(color_pair(3)) { header_win.addstr(filtered_requests.size.to_s) }
+          header_win.attron(color_pair(SUCCESS_GREEN)) { header_win.addstr(filtered_requests.size.to_s) }
           header_win.addstr(" found (")
-          header_win.attron(color_pair(3)) { header_win.addstr(total_requests.to_s) }
+          header_win.attron(color_pair(SUCCESS_GREEN)) { header_win.addstr(total_requests.to_s) }
           header_win.addstr(" total)")
         end
 
@@ -120,18 +120,18 @@ module LogBench
           header_win.attron(A_DIM) do
             help_line_1 = "a:Auto-scroll("
             header_win.addstr(help_line_1)
-            header_win.attron(color_pair(3)) { header_win.addstr(state.auto_scroll ? "ON" : "OFF") }
-            header_win.addstr(") | f:Filter | c:Clear filter | s:Sort(")
-            header_win.attron(color_pair(3)) { header_win.addstr(state.sort.display_name) }
+            header_win.attron(color_pair(SUCCESS_GREEN)) { header_win.addstr(state.auto_scroll ? "ON" : "OFF") }
+            header_win.addstr(") | f:Filter cols | c:Clear filter | s:Sort(")
+            header_win.attron(color_pair(SUCCESS_GREEN)) { header_win.addstr(state.sort.display_name) }
             header_win.addstr(") | t:Text selection(")
-            header_win.attron(color_pair(3)) { header_win.addstr(state.text_selection_mode? ? "ON" : "OFF") }
+            header_win.attron(color_pair(SUCCESS_GREEN)) { header_win.addstr(state.text_selection_mode? ? "ON" : "OFF") }
             header_win.addstr(") | q:Quit")
           end
 
           header_win.setpos(3, 2)
           header_win.attron(A_DIM) do
             header_win.addstr("←→/hl:Pane | ↑↓/jk:Navigate | g/G:Top/End | y:Copy highlighted | Ctrl+L:Clear | Ctrl+R:Restore(")
-            header_win.attron(color_pair(3)) { header_win.addstr(state.can_undo_clear? ? "READY" : "N/A") }
+            header_win.attron(color_pair(SUCCESS_GREEN)) { header_win.addstr(state.can_undo_clear? ? "READY" : "N/A") }
             header_win.addstr(")")
           end
         end

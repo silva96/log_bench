@@ -5,6 +5,25 @@ module LogBench
     module Renderer
       class Ansi
         include Curses
+        BRIGHT_WHITE = Screen::BRIGHT_WHITE
+        BLACK = Screen::BLACK
+        ERROR_RED = Screen::ERROR_RED
+        SUCCESS_GREEN = Screen::SUCCESS_GREEN
+        WARNING_YELLOW = Screen::WARNING_YELLOW
+        INFO_BLUE = Screen::INFO_BLUE
+        MAGENTA = Screen::MAGENTA
+        HEADER_CYAN = Screen::HEADER_CYAN
+
+        ANSI_RESET = 0
+        ANSI_BOLD = 1
+        ANSI_BLACK = 30
+        ANSI_RED = 31
+        ANSI_GREEN = 32
+        ANSI_YELLOW = 33
+        ANSI_BLUE = 34
+        ANSI_MAGENTA = 35
+        ANSI_CYAN = 36
+        ANSI_WHITE = 37
 
         def initialize(screen)
           self.screen = screen
@@ -166,20 +185,20 @@ module LogBench
 
         def ansi_to_curses_color(codes)
           # Convert ANSI color codes to curses color pairs
-          return nil if codes.empty? || codes == [0]
+          return nil if codes.empty? || codes == [ANSI_RESET]
 
           # Handle common ANSI codes
           codes.each do |code|
             case code
-            when 1 then return color_pair(7) | A_BOLD  # Bold/bright
-            when 30 then return color_pair(8) # Black
-            when 31 then return color_pair(6) # Red
-            when 32 then return color_pair(3) # Green
-            when 33 then return color_pair(4) # Yellow
-            when 34 then return color_pair(5) # Blue
-            when 35 then return color_pair(9) # Magenta
-            when 36 then return color_pair(1) # Cyan
-            when 37 then return nil           # White (default)
+            when ANSI_BOLD then return color_pair(BRIGHT_WHITE) | A_BOLD
+            when ANSI_BLACK then return color_pair(BLACK)
+            when ANSI_RED then return color_pair(ERROR_RED)
+            when ANSI_GREEN then return color_pair(SUCCESS_GREEN)
+            when ANSI_YELLOW then return color_pair(WARNING_YELLOW)
+            when ANSI_BLUE then return color_pair(INFO_BLUE)
+            when ANSI_MAGENTA then return color_pair(MAGENTA)
+            when ANSI_CYAN then return color_pair(HEADER_CYAN)
+            when ANSI_WHITE then return nil
             end
           end
 

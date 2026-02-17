@@ -9,8 +9,11 @@ module LogBench
       HEADER_HEIGHT = 5
       PANEL_BORDER_WIDTH = 3
       INPUT_TIMEOUT_MS = 200
+      TRANSPARENT_BACKGROUND = -1
+      EXTENDED_COLOR_THRESHOLD = 253
+      NO_COLOR_SUPPORT = 0
 
-      # Color pairs
+      # Color pairs (identifiers)
       HEADER_CYAN = 1
       DEFAULT_WHITE = 2
       SUCCESS_GREEN = 3    # GET requests, 200 status
@@ -21,6 +24,7 @@ module LogBench
       BLACK = 8
       MAGENTA = 9
       SELECTION_HIGHLIGHT = 10
+      FILTER_CELL_BACKGROUND = 11
 
       attr_reader :header_win, :log_win, :panel_width, :detail_win
 
@@ -89,17 +93,35 @@ module LogBench
         stdscr.keypad(true)
         stdscr.timeout = INPUT_TIMEOUT_MS
 
-        # Define color pairs with transparent background (-1)
-        init_pair(HEADER_CYAN, COLOR_CYAN, -1)      # Header/Cyan
-        init_pair(DEFAULT_WHITE, COLOR_WHITE, -1)     # Default/White
-        init_pair(SUCCESS_GREEN, COLOR_GREEN, -1)     # GET/Success/Green
-        init_pair(WARNING_YELLOW, COLOR_YELLOW, -1)    # POST/Warning/Yellow
-        init_pair(INFO_BLUE, COLOR_BLUE, -1)      # PUT/Blue
-        init_pair(ERROR_RED, COLOR_RED, -1)       # DELETE/Error/Red
-        init_pair(BRIGHT_WHITE, COLOR_WHITE, -1)     # Bold/Bright white
-        init_pair(BLACK, COLOR_BLACK, -1)     # Black
-        init_pair(MAGENTA, COLOR_MAGENTA, -1)   # Magenta
+        # Define color pairs with transparent background.
+        init_pair(HEADER_CYAN, COLOR_CYAN, TRANSPARENT_BACKGROUND)      # Header/Cyan
+        init_pair(DEFAULT_WHITE, COLOR_WHITE, TRANSPARENT_BACKGROUND)     # Default/White
+        init_pair(SUCCESS_GREEN, COLOR_GREEN, TRANSPARENT_BACKGROUND)     # GET/Success/Green
+        init_pair(WARNING_YELLOW, COLOR_YELLOW, TRANSPARENT_BACKGROUND)    # POST/Warning/Yellow
+        init_pair(INFO_BLUE, COLOR_BLUE, TRANSPARENT_BACKGROUND)      # PUT/Blue
+        init_pair(ERROR_RED, COLOR_RED, TRANSPARENT_BACKGROUND)       # DELETE/Error/Red
+        init_pair(BRIGHT_WHITE, COLOR_WHITE, TRANSPARENT_BACKGROUND)     # Bold/Bright white
+        init_pair(BLACK, COLOR_BLACK, TRANSPARENT_BACKGROUND)     # Black
+        init_pair(MAGENTA, COLOR_MAGENTA, TRANSPARENT_BACKGROUND)   # Magenta
         init_pair(SELECTION_HIGHLIGHT, COLOR_BLACK, COLOR_CYAN)     # Selection highlighting
+        if terminal_colors_count >= EXTENDED_COLOR_THRESHOLD
+          # Keep filter cell text readable on rich-color terminals.
+          init_pair(FILTER_CELL_BACKGROUND, COLOR_YELLOW, TRANSPARENT_BACKGROUND)
+        else
+          init_pair(FILTER_CELL_BACKGROUND, COLOR_BLACK, COLOR_WHITE)
+        end
+      end
+
+      def terminal_colors_count
+        if Curses.respond_to?(:colors)
+          Curses.colors.to_i
+        elsif defined?(COLORS)
+          COLORS.to_i
+        else
+          NO_COLOR_SUPPORT
+        end
+      rescue
+        NO_COLOR_SUPPORT
       end
 
       def cleanup_windows
