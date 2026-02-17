@@ -7,7 +7,14 @@ module LogBench
     class State
       include Singleton
 
-      attr_reader :main_filter, :sort, :detail_filter, :cleared_requests, :start_time, :stats, :total_queries
+      REQUEST_FILTER_COLUMNS = %i[method path status time].freeze
+      NUMERIC_COMPARATOR_REGEX = /\A(<=|>=|<|>)\s*(-?\d+(?:\.\d+)?)\z/
+      NUMERIC_COMPARATOR_ONLY_REGEX = /\A(<=|>=|<|>)\s*\z/
+      NUMERIC_RANGE_REGEX = /\A(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)\z/
+      NUMERIC_VALUE_REGEX = /\A-?\d+(?:\.\d+)?\z/
+      NUMERIC_COMPARISON_EPSILON = 0.0001
+
+      attr_reader :main_filter, :sort, :detail_filter, :cleared_requests, :start_time, :stats, :total_queries, :active_request_filter_column
       attr_accessor :requests, :orphan_requests, :auto_scroll, :scroll_offset, :selected, :detail_scroll_offset, :detail_selected_entry, :text_selection_mode, :update_available, :update_version
 
       def initialize
@@ -27,6 +34,8 @@ module LogBench
         self.text_selection_mode = false
         self.main_filter = Filter.new
         self.detail_filter = Filter.new
+        self.request_filters = build_request_filters
+        self.active_request_filter_column = :path
         self.sort = Sort.new
         self.update_available = false
         self.update_version = nil
@@ -81,6 +90,7 @@ module LogBench
 
       def clear_requests_filter
         main_filter.clear
+        request_filters.each_value(&:clear)
         self.selected = 0
         self.scroll_offset = 0
       end
@@ -156,6 +166,7 @@ module LogBench
       def enter_filter_mode
         if left_pane_focused?
           main_filter.enter_mode
+          self.active_request_filter_column ||= :path
         else
           detail_filter.enter_mode
         end
@@ -168,7 +179,7 @@ module LogBench
 
       def add_to_filter(char)
         if main_filter.active?
-          main_filter.add_character(char)
+          active_request_filter.add_character(char)
         elsif detail_filter.active?
           detail_filter.add_character(char)
         end
@@ -176,7 +187,7 @@ module LogBench
 
       def backspace_filter
         if main_filter.active?
-          main_filter.remove_character
+          active_request_filter.remove_character
         elsif detail_filter.active?
           detail_filter.remove_character
         end
@@ -190,19 +201,34 @@ module LogBench
         detail_filter.active?
       end
 
+      def request_filter_columns
+        REQUEST_FILTER_COLUMNS
+      end
+
+      def request_filter_for(column)
+        request_filters[column]
+      end
+
+      def select_request_filter_column(column)
+        return unless request_filter_columns.include?(column)
+
+        self.active_request_filter_column = column
+      end
+
+      def next_request_filter_column
+        switch_request_filter_column(1)
+      end
+
+      def previous_request_filter_column
+        switch_request_filter_column(-1)
+      end
+
+      def request_filters_present?
+        request_filters.values.any?(&:present?) || main_filter.present?
+      end
+
       def filtered_requests
-        filtered = if main_filter.present?
-          requests.select do |req|
-            main_filter.matches?(req.path) ||
-              main_filter.matches?(req.method) ||
-              main_filter.matches?(req.controller) ||
-              main_filter.matches?(req.action) ||
-              main_filter.matches?(req.status) ||
-              main_filter.matches?(req.request_id)
-          end
-        else
-          requests
-        end
+        filtered = requests.select { |req| request_matches_filters?(req) }
 
         sort.sort_requests(filtered)
       end
@@ -336,8 +362,89 @@ module LogBench
 
       private
 
+      attr_reader :request_filters
       attr_accessor :focused_pane, :running, :job_ids_map
-      attr_writer :main_filter, :detail_filter, :sort, :cleared_requests, :start_time, :stats, :total_queries
+      attr_writer :main_filter, :detail_filter, :sort, :cleared_requests, :start_time, :stats, :total_queries, :request_filters, :active_request_filter_column
+
+      def build_request_filters
+        REQUEST_FILTER_COLUMNS.to_h { |column| [column, Filter.new] }
+      end
+
+      def active_request_filter
+        request_filter_for(active_request_filter_column) || request_filter_for(:path)
+      end
+
+      def switch_request_filter_column(direction)
+        return unless request_filter_columns.include?(active_request_filter_column)
+
+        current_index = request_filter_columns.index(active_request_filter_column)
+        next_index = (current_index + direction) % request_filter_columns.length
+        self.active_request_filter_column = request_filter_columns[next_index]
+      end
+
+      def request_matches_filters?(request)
+        matches_legacy_main_filter?(request) && matches_column_filters?(request)
+      end
+
+      def matches_legacy_main_filter?(request)
+        return true unless main_filter.present?
+
+        main_filter.matches?(request.path) ||
+          main_filter.matches?(request.method) ||
+          main_filter.matches?(request.controller) ||
+          main_filter.matches?(request.action) ||
+          main_filter.matches?(request.status) ||
+          main_filter.matches?(request.request_id)
+      end
+
+      def matches_column_filters?(request)
+        request_filters.all? do |column, filter|
+          next true unless filter.present?
+
+          case column
+          when :method
+            filter.matches?(request.method)
+          when :path
+            filter.matches?(request.path)
+          when :status
+            numeric_filter_matches?(request.status, filter.display_text)
+          when :time
+            numeric_filter_matches?(request.duration, filter.display_text)
+          else
+            true
+          end
+        end
+      end
+
+      def numeric_filter_matches?(value, filter_text)
+        return true if filter_text.nil?
+
+        expression = filter_text.strip
+        return true if expression.empty?
+        return true if expression.match?(NUMERIC_COMPARATOR_ONLY_REGEX)
+        return false if value.nil?
+
+        if (comparison = expression.match(NUMERIC_COMPARATOR_REGEX))
+          compare_numeric(value.to_f, comparison[1], comparison[2].to_f)
+        elsif (range = expression.match(NUMERIC_RANGE_REGEX))
+          min_value, max_value = [range[1].to_f, range[2].to_f].minmax
+          value.to_f.between?(min_value, max_value)
+        elsif expression.match?(NUMERIC_VALUE_REGEX)
+          (value.to_f - expression.to_f).abs <= NUMERIC_COMPARISON_EPSILON
+        else
+          value.to_s.downcase.include?(expression.downcase)
+        end
+      end
+
+      def compare_numeric(value, operator, threshold)
+        case operator
+        when "<" then value < threshold
+        when "<=" then value <= threshold
+        when ">" then value > threshold
+        when ">=" then value >= threshold
+        else false
+        end
+      end
     end
   end
 end
