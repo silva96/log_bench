@@ -15,6 +15,8 @@ module LogBench
       CTRL_L = 12         # Clear requests
       CTRL_R = 18         # Undo clear requests (restore)
       ESC = 27            # Escape
+      BACKSPACE_KEYS = [127, 8, KEY_BACKSPACE].freeze
+      EXIT_FILTER_MODE_KEYS = [27, 10, 13].freeze # Escape, Enter, Return
 
       # UI constants
       DEFAULT_VISIBLE_HEIGHT = 20
@@ -62,7 +64,7 @@ module LogBench
 
       def handle_filter_input(ch)
         case ch
-        when 10, 13, 27  # Enter, Return, Escape
+        when *EXIT_FILTER_MODE_KEYS
           state.exit_filter_mode
         when KEY_UP
           state.exit_filter_mode
@@ -70,7 +72,7 @@ module LogBench
         when KEY_DOWN
           state.exit_filter_mode
           state.navigate_down
-        when 127, 8  # Backspace
+        when *BACKSPACE_KEYS
           state.backspace_filter
         else
           add_character_to_filter(ch)
