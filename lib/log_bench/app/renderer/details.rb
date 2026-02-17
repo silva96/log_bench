@@ -9,6 +9,13 @@ module LogBench
         include Curses
         EMPTY_LINE = {text: "", color: nil}
         SEPARATOR_LINE = {text: "", color: nil, separator: true}
+        HEADER_CYAN = Screen::HEADER_CYAN
+        DEFAULT_WHITE = Screen::DEFAULT_WHITE
+        SUCCESS_GREEN = Screen::SUCCESS_GREEN
+        WARNING_YELLOW = Screen::WARNING_YELLOW
+        INFO_BLUE = Screen::INFO_BLUE
+        ERROR_RED = Screen::ERROR_RED
+        SELECTION_HIGHLIGHT = Screen::SELECTION_HIGHLIGHT
 
         def initialize(screen, state, scrollbar, ansi_renderer)
           self.screen = screen
@@ -54,9 +61,9 @@ module LogBench
           detail_win.setpos(0, 2)
 
           if state.right_pane_focused?
-            detail_win.attron(color_pair(1) | A_BOLD) { detail_win.addstr(" Request Details ") }
+            detail_win.attron(color_pair(HEADER_CYAN) | A_BOLD) { detail_win.addstr(" Request Details ") }
           else
-            detail_win.attron(color_pair(2) | A_DIM) { detail_win.addstr(" Request Details ") }
+            detail_win.attron(color_pair(DEFAULT_WHITE) | A_DIM) { detail_win.addstr(" Request Details ") }
           end
 
           # Show detail filter to the right of the title (always visible when active)
@@ -67,7 +74,7 @@ module LogBench
             filter_x = detail_win.maxx - filter_text.length - 3
             if filter_x > 20  # Only show if there's enough space
               detail_win.setpos(0, filter_x)
-              detail_win.attron(color_pair(4)) { detail_win.addstr(filter_text) }
+              detail_win.attron(color_pair(WARNING_YELLOW)) { detail_win.addstr(filter_text) }
             end
           end
         end
@@ -95,7 +102,7 @@ module LogBench
             # Draw highlight background if selected
             if is_selected
               detail_win.setpos(y, 1)
-              detail_win.attron(color_pair(10) | A_DIM) do
+              detail_win.attron(color_pair(SELECTION_HIGHLIGHT) | A_DIM) do
                 detail_win.addstr(" " * (detail_win.maxx - 2))
               end
             end
@@ -106,7 +113,7 @@ module LogBench
             if line_data.is_a?(Hash) && line_data[:segments]
               line_data[:segments].each do |segment|
                 if is_selected
-                  detail_win.attron(color_pair(10) | A_DIM) { detail_win.addstr(segment[:text]) }
+                  detail_win.attron(color_pair(SELECTION_HIGHLIGHT) | A_DIM) { detail_win.addstr(segment[:text]) }
                 elsif segment[:color]
                   detail_win.attron(segment[:color]) { detail_win.addstr(segment[:text]) }
                 else
@@ -118,14 +125,14 @@ module LogBench
               if is_selected
                 # For selected ANSI lines, render without ANSI codes to maintain highlight
                 plain_text = line_data[:text].gsub(/\e\[[0-9;]*m/, "")
-                detail_win.attron(color_pair(10) | A_DIM) { detail_win.addstr(plain_text) }
+                detail_win.attron(color_pair(SELECTION_HIGHLIGHT) | A_DIM) { detail_win.addstr(plain_text) }
               else
                 ansi_renderer.parse_and_render(line_data[:text], detail_win)
               end
             elsif line_data.is_a?(Hash)
               # Handle single-color lines
               if is_selected
-                detail_win.attron(color_pair(10) | A_DIM) { detail_win.addstr(line_data[:text]) }
+                detail_win.attron(color_pair(SELECTION_HIGHLIGHT) | A_DIM) { detail_win.addstr(line_data[:text]) }
               elsif line_data[:color]
                 detail_win.attron(line_data[:color]) { detail_win.addstr(line_data[:text]) }
               else
@@ -133,7 +140,7 @@ module LogBench
               end
             elsif is_selected
               # Simple string
-              detail_win.attron(color_pair(10) | A_DIM) { detail_win.addstr(line_data.to_s) }
+              detail_win.attron(color_pair(SELECTION_HIGHLIGHT) | A_DIM) { detail_win.addstr(line_data.to_s) }
             else
               detail_win.addstr(line_data.to_s)
             end
@@ -164,11 +171,11 @@ module LogBench
 
           # Method - separate label and value colors
           method_color = case request.method
-          when "GET" then color_pair(3) | A_BOLD
-          when "POST" then color_pair(4) | A_BOLD
-          when "PUT" then color_pair(5) | A_BOLD
-          when "DELETE" then color_pair(6) | A_BOLD
-          else color_pair(2) | A_BOLD
+          when "GET" then color_pair(SUCCESS_GREEN) | A_BOLD
+          when "POST" then color_pair(WARNING_YELLOW) | A_BOLD
+          when "PUT" then color_pair(INFO_BLUE) | A_BOLD
+          when "DELETE" then color_pair(ERROR_RED) | A_BOLD
+          else color_pair(DEFAULT_WHITE) | A_BOLD
           end
 
           lines << EMPTY_LINE.merge(entry_id: entry_id)
@@ -178,7 +185,7 @@ module LogBench
             color: nil,
             entry_id: entry_id,
             segments: [
-              {text: "Method: ", color: color_pair(1)},
+              {text: "Method: ", color: color_pair(HEADER_CYAN)},
               {text: request.method, color: method_color}
             ]
           }
@@ -214,7 +221,7 @@ module LogBench
               color: nil,
               entry_id: entry_id,
               segments: [
-                {text: path_prefix, color: color_pair(1)},
+                {text: path_prefix, color: color_pair(HEADER_CYAN)},
                 {text: remaining_path, color: nil}  # Default white color
               ]
             }
@@ -226,7 +233,7 @@ module LogBench
               color: nil,
               entry_id: entry_id,
               segments: [
-                {text: path_prefix, color: color_pair(1)},
+                {text: path_prefix, color: color_pair(HEADER_CYAN)},
                 {text: first_chunk, color: nil}  # Default white color
               ]
             }
@@ -245,20 +252,20 @@ module LogBench
           if request.status
             # Add status color coding
             status_color = case request.status
-            when 200..299 then color_pair(3)  # Green
-            when 300..399 then color_pair(4)  # Yellow
-            when 400..599 then color_pair(6)  # Red
-            else color_pair(2)                # Default
+            when 200..299 then color_pair(SUCCESS_GREEN)
+            when 300..399 then color_pair(WARNING_YELLOW)
+            when 400..599 then color_pair(ERROR_RED)
+            else color_pair(DEFAULT_WHITE)
             end
 
             # Build segments for mixed coloring
             segments = [
-              {text: "Status: ", color: color_pair(1)},
+              {text: "Status: ", color: color_pair(HEADER_CYAN)},
               {text: request.status.to_s, color: status_color}
             ]
 
             if request.duration
-              segments << {text: " | Duration: ", color: color_pair(1)}
+              segments << {text: " | Duration: ", color: color_pair(HEADER_CYAN)}
               segments << {text: "#{request.duration}ms", color: nil}  # Default white color
             end
 
@@ -280,7 +287,7 @@ module LogBench
               color: nil,
               entry_id: entry_id,
               segments: [
-                {text: "Controller: ", color: color_pair(1)},
+                {text: "Controller: ", color: color_pair(HEADER_CYAN)},
                 {text: controller_value, color: nil}  # Default white color
               ]
             }
@@ -296,7 +303,7 @@ module LogBench
             color: nil,
             entry_id: entry_id,
             segments: [
-              {text: "Params:", color: color_pair(1) | A_BOLD}
+              {text: "Params:", color: color_pair(HEADER_CYAN) | A_BOLD}
             ]
           }
 
@@ -369,7 +376,7 @@ module LogBench
               color: nil,
               entry_id: entry_id,
               segments: [
-                {text: "Request ID: ", color: color_pair(1)},
+                {text: "Request ID: ", color: color_pair(HEADER_CYAN)},
                 {text: request.request_id, color: nil}  # Default white color
               ]
             }
@@ -387,7 +394,7 @@ module LogBench
               color: nil,
               entry_id: entry_id,
               segments: [
-                {text: "Timestamp: ", color: color_pair(1)},
+                {text: "Timestamp: ", color: color_pair(HEADER_CYAN)},
                 {text: request.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC"), color: nil}  # Default white color
               ]
             }
@@ -415,16 +422,16 @@ module LogBench
 
             # Show filter status in summary if filtering is active
             summary_title = "Query Summary:"
-            lines << {text: summary_title, color: color_pair(1) | A_BOLD, entry_id: entry_id}
+            lines << {text: summary_title, color: color_pair(HEADER_CYAN) | A_BOLD, entry_id: entry_id}
 
             if query_stats[:total_queries] > 0
               # Use QuerySummary methods for consistent formatting
               summary_line = query_summary.build_summary_line(query_stats)
-              lines << {text: "  #{summary_line}", color: color_pair(2), entry_id: entry_id}
+              lines << {text: "  #{summary_line}", color: color_pair(DEFAULT_WHITE), entry_id: entry_id}
 
               breakdown_line = query_summary.build_breakdown_line(query_stats)
               unless breakdown_line.empty?
-                lines << {text: "  #{breakdown_line}", color: color_pair(2), entry_id: entry_id}
+                lines << {text: "  #{breakdown_line}", color: color_pair(DEFAULT_WHITE), entry_id: entry_id}
               end
             end
 
@@ -440,13 +447,13 @@ module LogBench
                 color: nil,
                 entry_id: entry_id,
                 segments: [
-                  {text: "Related Logs ", color: color_pair(1) | A_BOLD},
+                  {text: "Related Logs ", color: color_pair(HEADER_CYAN) | A_BOLD},
                   {text: count_text, color: A_DIM},
-                  {text: ":", color: color_pair(1) | A_BOLD}
+                  {text: ":", color: color_pair(HEADER_CYAN) | A_BOLD}
                 ]
               }
             else
-              lines << {text: "Related Logs:", color: color_pair(1) | A_BOLD, entry_id: entry_id}
+              lines << {text: "Related Logs:", color: color_pair(HEADER_CYAN) | A_BOLD, entry_id: entry_id}
             end
 
             # Use filtered logs for display - group SQL queries with their call source lines
