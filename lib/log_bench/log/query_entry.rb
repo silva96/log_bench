@@ -19,6 +19,7 @@ module LogBench
         self.type = cached ? :cache : :sql
         self.timing = extract_timing
         self.operation = extract_operation
+        build_content_for_logstruct if logstruct_database_event?
       end
 
       def duration_ms
@@ -74,12 +75,39 @@ module LogBench
       attr_accessor :operation, :cached
 
       def extract_timing
+        # LogStruct has duration_ms as a direct field
+        if json_data["duration_ms"]
+          return "#{json_data["duration_ms"]}ms"
+        end
+
         match = clean_content.match(/\(([0-9.]+ms)\)/)
         match ? match[1] : nil
       end
 
       def extract_operation
+        # LogStruct has op_type as a direct field
+        if json_data["op_type"]
+          return json_data["op_type"].to_s.upcase
+        end
+
         SQL_OPERATIONS.find { |op| clean_content.include?(op) }
+      end
+
+      def logstruct_database_event?
+        json_data["evt"] == "database" && json_data["sql"]
+      end
+
+      def build_content_for_logstruct
+        sql = json_data["sql"]
+        name = json_data["name"]
+        timing_str = timing || "0.0ms"
+
+        parts = []
+        parts << name if name
+        parts << "(#{timing_str})"
+        parts << sql
+
+        @content = parts.join(" ")
       end
 
       def clean_content

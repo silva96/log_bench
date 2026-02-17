@@ -37,16 +37,20 @@ module LogBench
       puts LINE
     end
 
-    # Configure lograge after the gem was already configured
+    # Configure lograge after the gem was already configured (only for lograge mode)
     initializer "log_bench.configure_lograge", after: "log_bench.configure" do |app|
-      if LogBench.configuration.enabled
+      if LogBench.configuration.enabled && LogBench.configuration.lograge?
         LogBench::Railtie.setup_lograge(app)
       end
     end
 
     config.after_initialize do
       if LogBench.configuration.enabled
-        LogBench::Railtie.setup_rails_logger_final
+        # Only set up custom Rails logger for lograge mode
+        # LogStruct handles its own logger formatting
+        if LogBench.configuration.lograge?
+          LogBench::Railtie.setup_rails_logger_final
+        end
         LogBench::Railtie.setup_current_attributes
         LogBench::Railtie.setup_sidekiq_middleware
         LogBench::Railtie.validate_configuration!
@@ -55,7 +59,7 @@ module LogBench
 
     class << self
       def setup_lograge(app)
-        return unless LogBench.configuration.configure_lograge_automatically
+        return unless LogBench.configuration.configure_logger_automatically
 
         app.config.lograge.enabled = true
         app.config.lograge.formatter = Lograge::Formatters::Json.new
@@ -121,6 +125,7 @@ module LogBench
         puts "LogBench will be disabled until this is fixed."
         puts LINE
       end
+
     end
 
     private

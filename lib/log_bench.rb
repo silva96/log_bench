@@ -13,16 +13,33 @@ module LogBench
   class Error < StandardError; end
 
   class << self
-    attr_accessor :configuration
+    attr_accessor :configuration, :cli_logger_type
 
     def setup
       self.configuration ||= Configuration.new
       yield(configuration) if block_given?
+      # Auto-detect LogStruct if enabled
+      if defined?(LogStruct) && LogStruct.respond_to?(:enabled?) && LogStruct.enabled?
+        configuration.logger_type = :logstruct
+      end
       configuration
     end
 
     def logger
       @logger ||= create_debug_logger
+    end
+
+    # Returns the effective logger type (CLI flag takes precedence over config)
+    def logger_type
+      cli_logger_type || configuration&.logger_type || :lograge
+    end
+
+    def logstruct?
+      logger_type == :logstruct
+    end
+
+    def lograge?
+      logger_type == :lograge
     end
 
     private

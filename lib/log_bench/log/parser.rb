@@ -39,6 +39,10 @@ module LogBench
           CallLineEntry.new(data)
         when :job_enqueue
           JobEnqueueEntry.new(data)
+        when :job_start
+          JobStartEntry.new(data)
+        when :job_finish
+          JobFinishEntry.new(data)
         else
           Entry.new(data)
         end
@@ -70,17 +74,32 @@ module LogBench
       end
 
       def self.determine_json_type(data)
-        return :http_request if lograge_request?(data)
+        return :http_request if http_request?(data)
         return :cache if cache_message?(data)
         return :sql if sql_message?(data)
         return :sql_call_line if call_stack_message?(data)
         return :job_enqueue if job_enqueue_message?(data)
+        return :job_start if job_start_message?(data)
+        return :job_finish if job_finish_message?(data)
 
         :other
       end
 
+      def self.http_request?(data)
+        lograge_request?(data) || logstruct_request?(data)
+      end
+
       def self.lograge_request?(data)
         data["method"] && data["path"] && data["status"]
+      end
+
+      def self.logstruct_request?(data)
+        # LogStruct uses "evt" field with value "request" or "req"
+        evt = data["evt"]
+        return false unless evt
+
+        evt_str = evt.to_s.downcase
+        evt_str == "request" || evt_str == "req"
       end
 
       def self.normalize_message(message)
@@ -96,24 +115,46 @@ module LogBench
         end
       end
 
+      def self.extract_message(data)
+        # LogStruct uses "msg", lograge/standard uses "message"
+        data["msg"] || data["message"]
+      end
+
       def self.sql_message?(data)
-        message = normalize_message(data["message"])
+        # LogStruct uses evt:"database" for structured SQL events
+        return true if data["evt"] == "database"
+
+        message = normalize_message(extract_message(data))
         %w[SELECT INSERT UPDATE DELETE TRANSACTION BEGIN COMMIT ROLLBACK SAVEPOINT].any? { |op| message.include?(op) }
       end
 
       def self.cache_message?(data)
-        message = normalize_message(data["message"])
+        message = normalize_message(extract_message(data))
         message.include?("CACHE")
       end
 
       def self.call_stack_message?(data)
-        message = normalize_message(data["message"])
+        message = normalize_message(extract_message(data))
         message.include?("↳")
       end
 
       def self.job_enqueue_message?(data)
-        message = normalize_message(data["message"])
+        # LogStruct uses evt:"schedule" or evt:"enqueue" with src:"job"
+        return true if (data["evt"] == "schedule" || data["evt"] == "enqueue") && data["src"] == "job"
+
+        # Lograge format
+        message = normalize_message(extract_message(data))
         message.match?(/Enqueued .+ \(Job ID: .+\)/)
+      end
+
+      def self.job_start_message?(data)
+        # LogStruct uses evt:"start" with src:"job"
+        data["evt"] == "start" && data["src"] == "job"
+      end
+
+      def self.job_finish_message?(data)
+        # LogStruct uses evt:"finish" with src:"job"
+        data["evt"] == "finish" && data["src"] == "job"
       end
 
       def self.extract_job_id_from_enqueue(message)
@@ -145,6 +186,18 @@ module LogBench
       def self.enrich_job_entry(entry)
         return unless entry.respond_to?(:json_data)
 
+        # For JobStartEntry and JobFinishEntry, use job_id directly
+        if entry.is_a?(JobStartEntry) || entry.is_a?(JobFinishEntry)
+          job_id = entry.job_id
+          job_class = entry.job_class
+          if job_id
+            add_job_prefix_to_entry(entry, job_id, job_class)
+            add_request_id_to_entry(entry, job_id)
+          end
+          return
+        end
+
+        # For other entries, try to extract job info from tags
         tags = entry.json_data["tags"]
         job_id, job_class = extract_job_info_from_tags(tags)
         return unless job_id

@@ -70,4 +70,33 @@ module TestFixtures
   def self.request_with_null_message_logs
     [lograge_get_request, log_entry_with_null_message, log_entry_with_missing_message]
   end
+
+  # LogStruct fixtures (uses "req_id" not "request_id")
+  def self.logstruct_get_request
+    '{"src":"rails","evt":"request","lvl":"info","ts":"2025-01-01T10:00:00.000Z","method":"GET","path":"/users","status":200,"duration_ms":45.2,"controller":"UsersController","action":"index","req_id":"abc123"}'
+  end
+
+  def self.logstruct_post_request
+    '{"src":"rails","evt":"request","lvl":"info","ts":"2025-01-01T10:01:00.000Z","method":"POST","path":"/users","status":201,"duration_ms":150.5,"controller":"UsersController","action":"create","req_id":"def456","params":{"user":{"name":"John"}}}'
+  end
+
+  def self.logstruct_plain_log
+    '{"src":"app","evt":"log","lvl":"info","ts":"2025-01-01T10:00:01.000Z","msg":"Processing user request","req_id":"abc123"}'
+  end
+
+  def self.logstruct_sql_log
+    '{"src":"app","evt":"log","lvl":"debug","ts":"2025-01-01T10:00:01.000Z","msg":"User Load (1.5ms)  SELECT `users`.* FROM `users` WHERE `users`.`id` = 1","req_id":"abc123"}'
+  end
+
+  def self.logstruct_cache_log
+    '{"src":"app","evt":"log","lvl":"debug","ts":"2025-01-01T10:00:02.000Z","msg":"CACHE User Load (0.1ms)  SELECT `users`.* FROM `users`","req_id":"abc123"}'
+  end
+
+  def self.logstruct_request_with_sql
+    [logstruct_get_request, logstruct_sql_log]
+  end
+
+  def self.logstruct_request_with_cache
+    [logstruct_get_request, logstruct_cache_log]
+  end
 end

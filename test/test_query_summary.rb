@@ -1,6 +1,40 @@
 require "test_helper"
 
 class TestQuerySummary < Minitest::Test
+  # LogStruct database event tests
+  def test_logstruct_database_event_detection
+    data = {"evt" => "database", "sql" => "SELECT * FROM users", "duration_ms" => 1.5}
+    assert LogBench::Log::Parser.sql_message?(data)
+  end
+
+  def test_logstruct_database_event_parsing
+    logstruct_log = '{"src":"app","evt":"database","sql":"SELECT * FROM users WHERE id = 1","name":"User Load","duration_ms":1.5,"op_type":"select","req_id":"abc123","ts":"2026-01-23T19:36:20.053+13:00"}'
+
+    entry = LogBench::Log::Parser.parse_line(logstruct_log)
+
+    assert_instance_of LogBench::Log::QueryEntry, entry
+    assert_equal "1.5ms", entry.timing
+    assert_equal 1.5, entry.duration_ms
+    assert entry.select?
+    assert_includes entry.content, "User Load"
+    assert_includes entry.content, "SELECT * FROM users WHERE id = 1"
+  end
+
+  def test_logstruct_database_event_with_request
+    request_log = '{"src":"rails","evt":"request","method":"GET","path":"/users","status":200,"duration_ms":45.2,"controller":"UsersController","action":"index","req_id":"abc123","ts":"2026-01-23T19:36:20.157+13:00"}'
+    sql_log = '{"src":"app","evt":"database","sql":"SELECT * FROM users","name":"User Load","duration_ms":1.5,"op_type":"select","req_id":"abc123","ts":"2026-01-23T19:36:20.053+13:00"}'
+
+    collection = LogBench::Log::Collection.new([request_log, sql_log])
+    requests = collection.requests
+
+    assert_equal 1, requests.size
+    request = requests.first
+
+    sql_entries = request.related_logs.select { |log| log.is_a?(LogBench::Log::QueryEntry) }
+    assert_equal 1, sql_entries.size
+    assert sql_entries.first.select?
+  end
+
   def setup
     # Create a request with multiple query types
     @request_lines = [

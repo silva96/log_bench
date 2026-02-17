@@ -515,6 +515,119 @@ class TestLogBench < Minitest::Test
     assert_equal "true", LogBench::Log::Parser.normalize_message(true)
   end
 
+  # LogStruct format tests
+  def test_parse_logstruct_request
+    collection = LogBench::Log::Collection.new([TestFixtures.logstruct_get_request])
+    requests = collection.requests
+
+    assert_equal 1, requests.size
+    request = requests.first
+    assert_instance_of LogBench::Log::Request, request
+    assert_equal "GET", request.method
+    assert_equal "/users", request.path
+    assert_equal 200, request.status
+    assert_equal 45.2, request.duration  # duration_ms is mapped to duration
+    assert_equal "UsersController", request.controller
+    assert_equal "index", request.action
+    assert_equal "abc123", request.request_id
+  end
+
+  def test_parse_logstruct_post_request_with_params
+    collection = LogBench::Log::Collection.new([TestFixtures.logstruct_post_request])
+    requests = collection.requests
+
+    assert_equal 1, requests.size
+    request = requests.first
+    assert_equal "POST", request.method
+    assert_equal "/users", request.path
+    assert_equal 201, request.status
+    assert_equal 150.5, request.duration
+    refute_nil request.params
+    assert_equal "John", request.params["user"]["name"]
+  end
+
+  def test_parse_logstruct_sql_query
+    collection = LogBench::Log::Collection.new(TestFixtures.logstruct_request_with_sql)
+    requests = collection.requests
+
+    assert_equal 1, requests.size
+    request = requests.first
+    assert_equal 1, request.queries.size
+
+    query = request.queries.first
+    assert_instance_of LogBench::Log::QueryEntry, query
+    assert query.select?
+  end
+
+  def test_parse_logstruct_cache_entry
+    collection = LogBench::Log::Collection.new(TestFixtures.logstruct_request_with_cache)
+    requests = collection.requests
+
+    assert_equal 1, requests.size
+    request = requests.first
+    assert_equal 1, request.cache_operations.size
+
+    cache_op = request.cache_operations.first
+    assert_instance_of LogBench::Log::QueryEntry, cache_op
+    assert cache_op.cached?
+  end
+
+  def test_logstruct_timestamp_parsing
+    collection = LogBench::Log::Collection.new([TestFixtures.logstruct_get_request])
+    request = collection.requests.first
+
+    assert_instance_of Time, request.timestamp
+    assert_equal 2025, request.timestamp.year
+    assert_equal 1, request.timestamp.month
+    assert_equal 1, request.timestamp.day
+  end
+
+  def test_logstruct_plain_log_message
+    entry = LogBench::Log::Parser.parse_line(TestFixtures.logstruct_plain_log)
+
+    assert_instance_of LogBench::Log::Entry, entry
+    assert_equal "Processing user request", entry.content
+    assert_equal "abc123", entry.request_id
+  end
+
+  def test_logstruct_request_detection
+    # Test that LogStruct request format is detected correctly
+    data = JSON.parse(TestFixtures.logstruct_get_request)
+    assert LogBench::Log::Parser.logstruct_request?(data)
+    assert LogBench::Log::Parser.http_request?(data)
+  end
+
+  def test_lograge_request_detection
+    # Test that lograge format is still detected correctly
+    data = JSON.parse(TestFixtures.lograge_get_request)
+    assert LogBench::Log::Parser.lograge_request?(data)
+    assert LogBench::Log::Parser.http_request?(data)
+    refute LogBench::Log::Parser.logstruct_request?(data)
+  end
+
+  def test_configuration_logger_type
+    config = LogBench::Configuration.new
+    assert_equal :lograge, config.logger_type  # default
+    assert config.lograge?
+    refute config.logstruct?
+
+    config.logger_type = :logstruct
+    assert_equal :logstruct, config.logger_type
+    assert config.logstruct?
+    refute config.lograge?
+
+    # Test string coercion
+    config.logger_type = "lograge"
+    assert_equal :lograge, config.logger_type
+  end
+
+  def test_configuration_invalid_logger_type
+    config = LogBench::Configuration.new
+    assert_raises(ArgumentError) do
+      config.logger_type = :invalid
+    end
+  end
+
   def test_sql_message_detection_with_array
     # Should detect SQL messages when message is an Array
     data1 = {"message" => ["SELECT", "*", "FROM", "users"]}
