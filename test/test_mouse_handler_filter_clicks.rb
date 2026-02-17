@@ -26,6 +26,30 @@ class TestMouseHandlerFilterClicks < Minitest::Test
     assert_equal :status, @state.active_request_filter_column
   end
 
+  def test_clicking_status_header_toggles_status_sort_direction
+    @state.switch_to_right_pane
+
+    # y = 5 (header) + 1 (RequestList::COLUMN_HEADER_Y)
+    status_header_x = 34
+    @mouse_handler.send(:handle_mouse_click, status_header_x, 6)
+
+    assert_equal "↓", @state.sort_arrow_for_column(:status)
+
+    @mouse_handler.send(:handle_mouse_click, status_header_x, 6)
+    assert_equal "↑", @state.sort_arrow_for_column(:status)
+  end
+
+  def test_clicking_path_header_does_not_change_sort
+    initial_display_name = @state.sort.display_name
+
+    # y = 5 (header) + 1 (RequestList::COLUMN_HEADER_Y)
+    path_header_x = 20
+    @mouse_handler.send(:handle_mouse_click, path_header_x, 6)
+
+    assert_equal initial_display_name, @state.sort.display_name
+    assert_nil @state.sort_arrow_for_column(:path)
+  end
+
   def test_clicking_time_filter_area_selects_time_column
     @state.switch_to_right_pane
     refute @state.filter_mode

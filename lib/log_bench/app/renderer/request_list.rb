@@ -67,11 +67,16 @@ module LogBench
         def draw_column_headers
           log_win.setpos(COLUMN_HEADER_Y, HEADER_Y_OFFSET)
           log_win.attron(color_pair(HEADER_CYAN) | A_DIM) do
-            log_win.addstr("METHOD".ljust(METHOD_WIDTH))
+            log_win.addstr(column_header_text("METHOD", :method).ljust(METHOD_WIDTH))
             log_win.addstr("PATH".ljust(path_column_width))
-            log_win.addstr("STATUS".ljust(STATUS_WIDTH))
-            log_win.addstr("TIME")
+            log_win.addstr(column_header_text("STATUS", :status).ljust(STATUS_WIDTH))
+            log_win.addstr(column_header_text("TIME", :time))
           end
+        end
+
+        def column_header_text(label, column)
+          sort_arrow = state.sort_arrow_for_column(column)
+          sort_arrow ? "#{label}#{sort_arrow}" : label
         end
 
         def draw_filter_row

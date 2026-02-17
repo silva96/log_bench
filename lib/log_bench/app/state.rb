@@ -147,6 +147,18 @@ module LogBench
         sort.cycle
       end
 
+      def toggle_request_sort(column)
+        return unless sort.toggle_column(column)
+
+        self.auto_scroll = false
+        self.selected = 0
+        self.scroll_offset = 0
+      end
+
+      def sort_arrow_for_column(column)
+        sort.sort_arrow_for_column(column)
+      end
+
       def switch_to_left_pane
         self.focused_pane = :left
       end

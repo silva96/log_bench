@@ -33,6 +33,11 @@ module LogBench
           # Switch to left pane if not already focused
           state.switch_to_left_pane unless state.left_pane_focused?
 
+          if click_on_column_header_row?(y)
+            handle_request_header_click(x)
+            return
+          end
+
           if click_on_request_filter_row?(y)
             handle_request_filter_click(x)
             return
@@ -94,6 +99,40 @@ module LogBench
 
       def click_on_request_filter_row?(y)
         y == screen_header_height + Renderer::RequestList::FILTER_ROW_Y
+      end
+
+      def click_on_column_header_row?(y)
+        y == screen_header_height + Renderer::RequestList::COLUMN_HEADER_Y
+      end
+
+      def handle_request_header_click(x)
+        selected_column = request_header_column_for_x(x)
+        state.toggle_request_sort(selected_column) if selected_column
+      end
+
+      def request_header_column_for_x(x)
+        start_x = Renderer::RequestList::HEADER_Y_OFFSET
+        method_width = Renderer::RequestList::METHOD_WIDTH
+        path_width = screen.panel_width - Renderer::RequestList::PATH_MARGIN
+        status_width = Renderer::RequestList::STATUS_WIDTH
+
+        method_start = start_x
+        path_start = method_start + method_width
+        status_start = path_start + path_width
+        time_start = status_start + status_width
+
+        ranges = [
+          [:method, method_start...(method_start + method_width)],
+          [nil, path_start...(path_start + path_width)],
+          [:status, status_start...(status_start + status_width)],
+          [:time, time_start...screen.panel_width]
+        ]
+
+        ranges.each do |column, range|
+          return column if range.cover?(x)
+        end
+
+        nil
       end
 
       def handle_request_filter_click(x)
