@@ -37,6 +37,10 @@ class TestMouseHandlerFilterClicks < Minitest::Test
 
     @mouse_handler.send(:handle_mouse_click, status_header_x, 6)
     assert_equal "↑", @state.sort_arrow_for_column(:status)
+
+    @mouse_handler.send(:handle_mouse_click, status_header_x, 6)
+    assert_nil @state.sort_arrow_for_column(:status)
+    assert_equal "TIMESTAMP ASC", @state.sort.display_name
   end
 
   def test_clicking_path_header_does_not_change_sort

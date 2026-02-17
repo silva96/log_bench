@@ -11,18 +11,13 @@ module LogBench
         COLUMN_HEADER_Y = 1
         FILTER_ROW_Y = 2
         ROWS_START_Y = 3
-        FILTER_HINT_TEXT = "Press f to start filtering, operators allowed: > >= < <= 50-100"
-        FILTER_RIGHT_EDGE_OFFSET = 2
 
         # Column widths
         METHOD_WIDTH = 8
         STATUS_WIDTH = 8
         TIME_WIDTH = 6
         STATUS_RENDER_WIDTH = 4
-        FILTER_STATUS_WIDTH = 7
-        FILTER_TIME_WIDTH = 8
         PATH_MARGIN = 27
-        CURSOR_BLINK_INTERVAL_SECONDS = 0.5
 
         # Color constants
         HEADER_CYAN = Screen::HEADER_CYAN
@@ -32,12 +27,18 @@ module LogBench
         INFO_BLUE = Screen::INFO_BLUE
         ERROR_RED = Screen::ERROR_RED
         SELECTION_HIGHLIGHT = Screen::SELECTION_HIGHLIGHT
-        FILTER_CELL_BACKGROUND = Screen::FILTER_CELL_BACKGROUND
 
         def initialize(screen, state, scrollbar)
           self.screen = screen
           self.state = state
           self.scrollbar = scrollbar
+          self.filter_bar = RequestFilterBar.new(
+            screen,
+            state,
+            header_x_offset: HEADER_Y_OFFSET,
+            row_y: FILTER_ROW_Y,
+            method_width: METHOD_WIDTH
+          )
         end
 
         def draw
@@ -52,7 +53,7 @@ module LogBench
 
         private
 
-        attr_accessor :screen, :state, :scrollbar
+        attr_accessor :screen, :state, :scrollbar, :filter_bar
 
         def draw_header
           log_win.setpos(0, HEADER_Y_OFFSET)
@@ -80,89 +81,7 @@ module LogBench
         end
 
         def draw_filter_row
-          if show_filter_cells?
-            draw_filter_cells_row
-          else
-            draw_filter_hint_row
-          end
-        end
-
-        def show_filter_cells?
-          state.filter_mode || state.request_filters_present?
-        end
-
-        def draw_filter_hint_row
-          log_win.setpos(FILTER_ROW_Y, HEADER_Y_OFFSET)
-          consumed = draw_filter_hint_prefix(filter_row_width)
-          fill_remaining_filter_row(consumed)
-        end
-
-        def draw_filter_hint_prefix(width)
-          return 0 if width <= 0
-
-          hint_text = FILTER_HINT_TEXT[0, width].ljust(width)
-          log_win.attron(color_pair(DEFAULT_WHITE) | A_DIM) { log_win.addstr(hint_text) }
-          hint_text.length
-        end
-
-        def fill_remaining_filter_row(consumed_width)
-          remaining = filter_row_width - consumed_width
-          return if remaining <= 0
-
-          log_win.attron(color_pair(DEFAULT_WHITE) | A_DIM) { log_win.addstr(" " * remaining) }
-        end
-
-        def draw_filter_cells_row
-          log_win.setpos(FILTER_ROW_Y, HEADER_Y_OFFSET)
-          draw_filter_cell(:method, METHOD_WIDTH)
-          draw_filter_cell(:path, filter_path_column_width)
-          log_win.setpos(FILTER_ROW_Y, status_filter_col_start)
-          draw_filter_cell(:status, status_filter_width)
-          log_win.setpos(FILTER_ROW_Y, time_filter_col_start)
-          draw_filter_cell(:time, time_filter_width)
-        end
-
-        def draw_filter_cell(column, width)
-          filter_text = filter_text_for(column, width)
-          log_win.attron(filter_cell_attributes(column)) { log_win.addstr(filter_text) }
-        end
-
-        def filter_text_for(column, width)
-          filter = state.request_filter_for(column)
-          text = filter.display_text.to_s
-          text = "#{text}#{active_filter_cursor}" if active_filter_column?(column)
-
-          align_filter_text(column, text, width)
-        end
-
-        def align_filter_text(column, text, width)
-          if column == :status
-            visible_text = text[0, width]
-            visible_text.rjust(width - 1).ljust(width)
-          elsif column == :time
-            visible_text = text[0, width - 1]
-            " #{visible_text}".ljust(width)
-          else
-            text[0, width].ljust(width)
-          end
-        end
-
-        def active_filter_column?(column)
-          state.filter_mode && state.active_request_filter_column == column
-        end
-
-        def filter_cell_attributes(column)
-          base = color_pair(FILTER_CELL_BACKGROUND) | A_DIM
-          active_filter_column?(column) ? color_pair(FILTER_CELL_BACKGROUND) : base
-        end
-
-        def active_filter_cursor
-          cursor_visible? ? "█" : " "
-        end
-
-        def cursor_visible?
-          blink_tick = (Process.clock_gettime(Process::CLOCK_MONOTONIC) / CURSOR_BLINK_INTERVAL_SECONDS).to_i
-          blink_tick.even?
+          filter_bar.draw
         end
 
         def draw_rows
@@ -280,34 +199,6 @@ module LogBench
 
         def path_column_width
           screen.panel_width - PATH_MARGIN
-        end
-
-        def filter_path_column_width
-          [status_filter_col_start - (HEADER_Y_OFFSET + METHOD_WIDTH), 1].max
-        end
-
-        def status_filter_width
-          FILTER_STATUS_WIDTH
-        end
-
-        def time_filter_width
-          FILTER_TIME_WIDTH
-        end
-
-        def filter_row_width
-          filter_right_edge - HEADER_Y_OFFSET
-        end
-
-        def status_filter_col_start
-          time_filter_col_start - status_filter_width
-        end
-
-        def time_filter_col_start
-          filter_right_edge - time_filter_width
-        end
-
-        def filter_right_edge
-          screen.panel_width - FILTER_RIGHT_EDGE_OFFSET
         end
 
         def status_col_start

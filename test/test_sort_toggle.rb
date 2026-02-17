@@ -19,6 +19,11 @@ class TestSortToggle < Minitest::Test
 
     assert_equal "↑", @state.sort_arrow_for_column(:status)
     assert_equal 200, @state.filtered_requests.first.status
+
+    @state.toggle_request_sort(:status)
+
+    assert_nil @state.sort_arrow_for_column(:status)
+    assert_equal "TIMESTAMP ASC", @state.sort.display_name
   end
 
   def test_toggle_time_sort_direction
@@ -34,6 +39,11 @@ class TestSortToggle < Minitest::Test
 
     assert_equal "↑", @state.sort_arrow_for_column(:time)
     assert_equal min_duration, @state.filtered_requests.first.duration
+
+    @state.toggle_request_sort(:time)
+
+    assert_nil @state.sort_arrow_for_column(:time)
+    assert_equal "TIMESTAMP ASC", @state.sort.display_name
   end
 
   def test_path_sort_is_ignored

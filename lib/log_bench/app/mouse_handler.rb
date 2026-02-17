@@ -143,23 +143,11 @@ module LogBench
       end
 
       def request_filter_column_for_x(x)
-        start_x = Renderer::RequestList::HEADER_Y_OFFSET
-        method_width = Renderer::RequestList::METHOD_WIDTH
-        filter_right_edge = screen.panel_width - Renderer::RequestList::FILTER_RIGHT_EDGE_OFFSET
-
-        path_start = start_x + method_width
-        time_width = Renderer::RequestList::FILTER_TIME_WIDTH
-        status_width = Renderer::RequestList::FILTER_STATUS_WIDTH
-        time_start = filter_right_edge - time_width
-        status_start = time_start - status_width
-        path_width = [status_start - path_start, 1].max
-
-        ranges = [
-          [:method, start_x...(start_x + method_width)],
-          [:path, path_start...(path_start + path_width)],
-          [:status, status_start...(status_start + status_width)],
-          [:time, time_start...(time_start + time_width)]
-        ]
+        ranges = Renderer::RequestFilterBar.layout(
+          screen.panel_width,
+          header_x_offset: Renderer::RequestList::HEADER_Y_OFFSET,
+          method_width: Renderer::RequestList::METHOD_WIDTH
+        ).slice(:method, :path, :status, :time)
 
         ranges.each do |column, range|
           return column if range.cover?(x)

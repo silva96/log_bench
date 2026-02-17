@@ -33,7 +33,11 @@ module LogBench
         return false unless target_mode
 
         if mode == target_mode
-          toggle_direction
+          if direction == DEFAULT_DIRECTIONS.fetch(mode)
+            toggle_direction
+          else
+            reset_to_default_sort
+          end
         else
           self.mode = target_mode
           self.direction = DEFAULT_DIRECTIONS.fetch(mode)
@@ -99,6 +103,11 @@ module LogBench
 
       def toggle_direction
         self.direction = (direction == :asc) ? :desc : :asc
+      end
+
+      def reset_to_default_sort
+        self.mode = :timestamp
+        self.direction = DEFAULT_DIRECTIONS.fetch(mode)
       end
     end
   end
